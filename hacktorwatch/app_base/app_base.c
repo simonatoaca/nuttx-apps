@@ -34,41 +34,18 @@
 #include <string.h>
 #include <unistd.h>
 #include <sys/boardctl.h>
+#include <nshlib/nshlib.h>
 
 #include <lvgl/lvgl.h>
 #include <nuttx/timers/timer.h>
 #include <nuttx/input/buttons.h>
+
 /****************************************************************************
  * Pre-processor Definitions
  ****************************************************************************/
 
-/* Should we perform board-specific driver initialization? There are two
- * ways that board initialization can occur:  1) automatically via
- * board_late_initialize() during bootupif CONFIG_BOARD_LATE_INITIALIZE
- * or 2).
- * via a call to boardctl() if the interface is enabled
- * (CONFIG_BOARDCTL=y).
- * If this task is running as an NSH built-in application, then that
- * initialization has probably already been performed otherwise we do it
- * here.
- */
-
-#undef NEED_BOARDINIT
-
-#if defined(CONFIG_BOARDCTL) && !defined(CONFIG_NSH_ARCHINIT)
-  #define NEED_BOARDINIT 1
-#endif
-
-#define TIMER_DEVNAME "/dev/timer0"
-/* Specifies how often the timer should generate events */
-#define TIMER_INTERVAL 1000000
-#define TIMER_SIGNO 32
-#define BUTTONS_SIGNO 31
-#define START_TIMER TCIOC_START
-#define STOP_TIMER TCIOC_STOP
-
 #define BUTTON_DEVNAME "/dev/buttons"
-#define BUTTON_GPIO 0
+#define BUTTONS_SIGNO 31
 
 /****************************************************************************
  * Private Type Declarations
@@ -78,128 +55,7 @@
  * Private Data
  ****************************************************************************/
 
-static volatile int timer_fd;
-
-/**
- * @TODO: (3) Define global variables to be used by the timer
- *
- */
-
-/* ********************************************************************** */
-
-/**
- * @TODO: (BONUS) Define global variables to be used by the button task
- *
- */
-
-/* ********************************************************************** */
-
-/****************************************************************************
- * Private Functions
- ****************************************************************************/
-
-static void timer_sighandler(int signo, FAR siginfo_t *siginfo,
-                             FAR void *context)
-{
-  /**
-   * @TODO: (3) Fill the timer signal handler to update the value to be displayed
-   *
-   */
-
-  /* ********************************************************************** */
-}
-
-static int setup_timer(void)
-{
-  // struct timer_notify_s notify;
-  struct sigaction act;
-  int ret;
-
-  // timer_fd = open(TIMER_DEVNAME, O_RDONLY);
-  // if (timer_fd < 0) {
-  //   fprintf(stderr, "ERROR: Failed to open %s: %d\n",
-  //           TIMER_DEVNAME, errno);
-  //   return EXIT_FAILURE;
-  // }
-
-  // ret = ioctl(timer_fd, TCIOC_SETTIMEOUT, TIMER_INTERVAL);
-  // if (ret < 0) {
-  //   fprintf(stderr, "ERROR: Failed to set the timer interval: %d\n",
-  //           errno);
-  //   close(timer_fd);
-  //   return EXIT_FAILURE;
-  // }
-
-  // act.sa_sigaction = timer_sighandler;
-  // act.sa_flags     = SA_SIGINFO;
-
-  // sigfillset(&act.sa_mask);
-  // sigdelset(&act.sa_mask, TIMER_SIGNO);
-
-  // ret = sigaction(TIMER_SIGNO, &act, NULL);
-  // if (ret != OK) {
-  //   fprintf(stderr, "ERROR: Fsigaction failed: %d\n", errno);
-  //   close(timer_fd);
-  //   return EXIT_FAILURE;
-  // }
-
-  // notify.pid      = getpid();
-  // notify.periodic = true;
-
-  // notify.event.sigev_notify = SIGEV_SIGNAL;
-  // notify.event.sigev_signo  = TIMER_SIGNO;
-  // notify.event.sigev_value.sival_ptr = NULL;
-
-  // ret = ioctl(timer_fd, TCIOC_NOTIFICATION, (unsigned long)((uintptr_t)&notify));
-  // if (ret < 0) {
-  //   fprintf(stderr, "ERROR: Failed to set the timer handler: %d\n", errno);
-  //   close(timer_fd);
-  //   return EXIT_FAILURE;
-  // }
-
-  return 0;
-}
-
-static int send_timer_cmd(int cmd)
-{
-  int ret;
-  // struct timer_notify_s notify;
-
-  // if (cmd == STOP_TIMER) {
-
-  //   ret = ioctl(timer_fd, cmd, 0);
-
-  //   if (ret < 0) {
-  //     printf("ERROR: Failed to send command to timer: %d\n", errno);
-  //     close(timer_fd);
-  //     return EXIT_FAILURE;
-  //   }
-  // } else {
-
-  //   notify.pid      = getpid();
-  //   notify.periodic = true;
-
-  //   notify.event.sigev_notify = SIGEV_SIGNAL;
-  //   notify.event.sigev_signo  = TIMER_SIGNO;
-  //   notify.event.sigev_value.sival_ptr = NULL;
-
-  //   ret = ioctl(timer_fd, TCIOC_NOTIFICATION, (unsigned long)((uintptr_t)&notify));
-  //   if (ret < 0) {
-  //     printf("ERROR: Failed to set the timer handler: %d\n", errno);
-  //     close(timer_fd);
-  //     return EXIT_FAILURE;
-  //   }
-
-  //   ret = ioctl(timer_fd, cmd, 0);
-  //   if (ret < 0) {
-  //     printf("ERROR: Failed to send command to timer: %d\n", errno);
-  //     close(timer_fd);
-  //     return EXIT_FAILURE;
-  //   }
-  // }
-
-  return 0;
-}
+static volatile int btn_value = 0;
 
 static int button_task(int argc, char *argv[])
 {
@@ -272,6 +128,12 @@ static int button_task(int argc, char *argv[])
 
     sample = (btn_buttonset_t)value.si_value.sival_int;
     printf("Pushed button %d!\n", sample);
+
+    if (sample == 2) {
+      btn_value++;
+    } else {
+      btn_value--;
+    }
   }
 
 
@@ -297,30 +159,41 @@ static int lvgl_handler(int argc, char *argv[])
  * Public Functions
  ****************************************************************************/
 
-/****************************************************************************
- * Name: main
- *
- * Description:
- *
- * Input Parameters:
- *   Standard argc and argv
- *
- * Returned Value:
- *   Zero on success; a positive, non-zero value on failure.
- *
- ****************************************************************************/
 
 int main(int argc, FAR char *argv[])
 {
   int ret;
   lv_nuttx_dsc_t info;
   lv_nuttx_result_t result;
+  lv_obj_t *screen;
+  lv_obj_t *timer_label;
 
-#ifdef NEED_BOARDINIT
-  /* Perform board-specific driver initialization */
+  struct sched_param param;
 
-  boardctl(BOARDIOC_INIT, 0);
+  /* Check the task priority that we were started with */
 
+  sched_getparam(0, &param);
+  if (param.sched_priority != CONFIG_SYSTEM_NSH_PRIORITY)
+    {
+      /* If not then set the priority to the configured priority */
+
+      param.sched_priority = CONFIG_SYSTEM_NSH_PRIORITY;
+      sched_setparam(0, &param);
+    }
+
+  /* Initialize the NSH library */
+
+  nsh_initialize();
+
+#ifndef CONFIG_HACKTORWATCH_DISABLE_CONSOLE
+  posix_spawnattr_t attr;
+  posix_spawnattr_init(&attr);
+  attr.priority  = CONFIG_INIT_PRIORITY;
+  attr.stacksize = CONFIG_INIT_STACKSIZE;
+
+  ret = task_spawn("nsh_consolemain",
+                   nsh_consolemain,
+                   NULL, &attr, NULL, NULL);
 #endif
 
   lv_init();
@@ -348,56 +221,25 @@ int main(int argc, FAR char *argv[])
     return EXIT_FAILURE;
   }
 
-  setup_timer();
-
   /* Change the active screen's background color */
 
-  lv_obj_t *screen = lv_obj_create(NULL);
+  screen = lv_obj_create(NULL);
   lv_scr_load(screen);
   lv_obj_set_style_bg_color(lv_screen_active(), lv_color_hex(0x003a57), LV_PART_MAIN);
 
   /* Create a white label, set its text and align it to the center */
 
-  lv_obj_t *label = lv_label_create(lv_screen_active());
-  lv_label_set_text(label, "Timer:");
+  timer_label = lv_label_create(lv_screen_active());
+  lv_label_set_text_fmt(timer_label, "Timer: %d", btn_value);
   lv_obj_set_style_text_color(lv_screen_active(), lv_color_hex(0xffffff), LV_PART_MAIN);
-  lv_obj_align(label, LV_ALIGN_CENTER, 0, 0);
-
-  /**
-   * @TODO: (2) Add a second label below the first one with a default timer value (00:00).
-   *        Set the background color to RED.
-   *
-   */
-
-  /* ********************************************************************** */
+  lv_obj_align(timer_label, LV_ALIGN_CENTER, -20, 0);
 
   /* Create a separate task for handling lvgl updates */
   ret = task_create("lvgl_handler", 110, 4096, lvgl_handler,
                     NULL);
 
-  /**
-   * @TODO: (3) Uncomment to start the timer
-   *
-   */
-
-//   send_timer_cmd(START_TIMER);
-
-  /* ********************************************************************** */
-
   while (1) {
-    /**
-     * @TODO: (3) Update the timer value on the display
-     *
-     */
-
-    /* ********************************************************************** */
-
-    /**
-     * @TODO: (BONUS) On button press, start/stop the timer.
-     *
-     */
-
-    /* ********************************************************************** */
+    lv_label_set_text_fmt(timer_label, "Timer: %d", btn_value);
 
     usleep(100000);
   }

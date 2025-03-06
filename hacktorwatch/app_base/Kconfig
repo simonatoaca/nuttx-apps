@@ -14,7 +14,7 @@ if HACKTORWATCH_APP_BASE
 
 config HACKTORWATCH_APP_BASE_PROGNAME
 	string "Program name"
-	default "hacktorwatch_main"
+	default "app_base"
 	---help---
 		This is the name of the program that will be used when the NSH ELF
 		program is installed.
