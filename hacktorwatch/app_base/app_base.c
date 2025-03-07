@@ -39,6 +39,7 @@
 #include <lvgl/lvgl.h>
 #include <nuttx/timers/timer.h>
 #include <nuttx/input/buttons.h>
+#include <nuttx/semaphore.h>
 
 /****************************************************************************
  * Pre-processor Definitions
@@ -47,15 +48,82 @@
 #define BUTTON_DEVNAME "/dev/buttons"
 #define BUTTONS_SIGNO 31
 
+#define NUM_BTNS (3)
+#define BUTTON_UNUSED (0)
+#define BUTTON_OK (1)
+#define BUTTON_UP (2)
+#define BUTTON_DOWN (3)
+
 /****************************************************************************
  * Private Type Declarations
  ****************************************************************************/
+
+typedef void (*btn_behaviour)(void *ctx);
+
+struct ctx_s {
+  uint32_t bg_color;
+  btn_behaviour btn_action[NUM_BTNS + 1];
+};
+
+struct data_s {
+  lv_obj_t *screen;
+  sem_t ctx_update; // this signals a ctx update (e.g. btn increment/decrement -> update screen)
+  struct ctx_s *ctx;
+  int btn_value;
+};
+
+/****************************************************************************
+ * Private Function Prototypes
+ ****************************************************************************/
+
+static void default_btn_unused(void *ctx);
+static void default_btn_up(void *ctx);
+static void default_btn_down(void *ctx);
+static void default_btn_ok(void *ctx);
 
 /****************************************************************************
  * Private Data
  ****************************************************************************/
 
-static volatile int btn_value = 0;
+static struct data_s g_data = {0};
+static struct ctx_s default_ctx = {
+  .bg_color = 0x003a57,
+  .btn_action[BUTTON_UNUSED] = default_btn_unused,
+  .btn_action[BUTTON_OK] = default_btn_ok,
+  .btn_action[BUTTON_UP] = default_btn_up,
+  .btn_action[BUTTON_DOWN] = default_btn_down
+};
+
+/****************************************************************************
+ * Private Functions
+ ****************************************************************************/
+
+static void default_btn_unused(void *ctx)
+{
+  UNUSED(ctx);
+}
+
+static void default_btn_up(void *ctx)
+{
+  struct data_s *g_data_ptr = (struct data_s *)ctx;
+  g_data_ptr->btn_value++;
+  sem_post(&g_data_ptr->ctx_update);
+}
+
+static void default_btn_down(void *ctx)
+{
+  struct data_s *g_data_ptr = (struct data_s *)ctx;
+  g_data_ptr->btn_value--;
+  sem_post(&g_data_ptr->ctx_update);
+}
+
+static void default_btn_ok(void *ctx)
+{
+  struct data_s *g_data_ptr = (struct data_s *)ctx;
+
+  g_data_ptr->ctx->bg_color = ~g_data_ptr->ctx->bg_color;
+  sem_post(&g_data_ptr->ctx_update);
+}
 
 static int button_task(int argc, char *argv[])
 {
@@ -129,11 +197,7 @@ static int button_task(int argc, char *argv[])
     sample = (btn_buttonset_t)value.si_value.sival_int;
     printf("Pushed button %d!\n", sample);
 
-    if (sample == 2) {
-      btn_value++;
-    } else {
-      btn_value--;
-    }
+    g_data.ctx->btn_action[sample](&g_data);
   }
 
 
@@ -159,13 +223,17 @@ static int lvgl_handler(int argc, char *argv[])
  * Public Functions
  ****************************************************************************/
 
+static void init_data(void)
+{
+  sem_init(&g_data.ctx_update, 1, 0);
+  g_data.ctx = &default_ctx;
+}
 
 int main(int argc, FAR char *argv[])
 {
   int ret;
   lv_nuttx_dsc_t info;
   lv_nuttx_result_t result;
-  lv_obj_t *screen;
   lv_obj_t *timer_label;
 
   struct sched_param param;
@@ -196,8 +264,9 @@ int main(int argc, FAR char *argv[])
                    NULL, &attr, NULL, NULL);
 #endif
 
-  lv_init();
+  init_data();
 
+  lv_init();
   lv_nuttx_dsc_init(&info);
 
 #ifdef CONFIG_LV_USE_NUTTX_LCD
@@ -223,14 +292,14 @@ int main(int argc, FAR char *argv[])
 
   /* Change the active screen's background color */
 
-  screen = lv_obj_create(NULL);
-  lv_scr_load(screen);
-  lv_obj_set_style_bg_color(lv_screen_active(), lv_color_hex(0x003a57), LV_PART_MAIN);
+  g_data.screen = lv_obj_create(NULL);
+  lv_scr_load(g_data.screen);
+  lv_obj_set_style_bg_color(lv_screen_active(), lv_color_hex(0xffffff), LV_PART_MAIN);
 
   /* Create a white label, set its text and align it to the center */
 
   timer_label = lv_label_create(lv_screen_active());
-  lv_label_set_text_fmt(timer_label, "Timer: %d", btn_value);
+  lv_label_set_text(timer_label, "");
   lv_obj_set_style_text_color(lv_screen_active(), lv_color_hex(0xffffff), LV_PART_MAIN);
   lv_obj_align(timer_label, LV_ALIGN_CENTER, -20, 0);
 
@@ -239,9 +308,11 @@ int main(int argc, FAR char *argv[])
                     NULL);
 
   while (1) {
-    lv_label_set_text_fmt(timer_label, "Timer: %d", btn_value);
+    sem_wait(&g_data.ctx_update);
 
-    usleep(100000);
+    /* Execute only on update */
+    lv_label_set_text_fmt(timer_label, "Timer: %d", g_data.btn_value);
+    lv_obj_set_style_bg_color(lv_screen_active(), lv_color_hex(g_data.ctx->bg_color), LV_PART_MAIN);
   }
 
   lv_disp_remove(result.disp);
