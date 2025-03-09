@@ -14,5 +14,6 @@ struct ctx_s {
 };
 
 int menu(int argc, char *argv[]);
+int home(int argc, char *argv[]);
 
 #endif

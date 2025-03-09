@@ -1,5 +1,5 @@
 /****************************************************************************
- * apps/hacktorwatch/menu/menu.c
+ * apps/hacktorwatch/home/home.c
  *
  * SPDX-License-Identifier: Apache-2.0
  *
@@ -51,7 +51,7 @@
  * Private Type Declarations
  ****************************************************************************/
 
-struct menu_data_s {
+struct home_data_s {
   uint32_t bg_color;
   int btn_value;
 };
@@ -60,79 +60,79 @@ struct menu_data_s {
  * Private Function Prototypes
  ****************************************************************************/
 
-static void menu_btn_unused(void *ctx);
-static void menu_btn_up(void *ctx);
-static void menu_btn_down(void *ctx);
-static void menu_btn_ok(void *ctx);
-static void menu_display(void *ctx);
+static void home_btn_unused(void *ctx);
+static void home_btn_up(void *ctx);
+static void home_btn_down(void *ctx);
+static void home_btn_ok(void *ctx);
+static void home_display(void *ctx);
 
 /****************************************************************************
  * Private Data
  ****************************************************************************/
 
 /* Internal to a task */
-static struct menu_data_s menu_data = {
-  .bg_color = ~0x003a57,
+static struct home_data_s home_data = {
+  .bg_color = 0x003a57,
   .btn_value = 0,
 };
 
-static const struct ctx_s menu_ctx = {
-  .btn_action[BUTTON_UNUSED] = menu_btn_unused,
-  .btn_action[BUTTON_OK] = menu_btn_ok,
-  .btn_action[BUTTON_UP] = menu_btn_up,
-  .btn_action[BUTTON_DOWN] = menu_btn_down,
-  .display = menu_display,
-  .data = (void *)&menu_data,
-  .data_size = sizeof(menu_data)
+static const struct ctx_s home_ctx = {
+  .btn_action[BUTTON_UNUSED] = home_btn_unused,
+  .btn_action[BUTTON_OK] = home_btn_ok,
+  .btn_action[BUTTON_UP] = home_btn_up,
+  .btn_action[BUTTON_DOWN] = home_btn_down,
+  .display = home_display,
+  .data = (void *)&home_data,
+  .data_size = sizeof(home_data)
 };
 
 /****************************************************************************
  * Private Functions
  ****************************************************************************/
 
-static void menu_btn_unused(void *ctx)
+static void home_btn_unused(void *ctx)
 {
   UNUSED(ctx);
 }
 
-static void menu_btn_up(void *ctx)
+static void home_btn_up(void *ctx)
 {
   struct data_s const *g_data_ptr = get_g_data();
   UNUSED(g_data_ptr);
 
-  menu_data.btn_value++;
+  home_data.btn_value++;
   signal_ctx_update();
 }
 
-static void menu_btn_down(void *ctx)
+static void home_btn_down(void *ctx)
 {
   struct data_s const *g_data_ptr = get_g_data();
   UNUSED(g_data_ptr);
 
-  menu_data.btn_value--;
+  home_data.btn_value--;
   signal_ctx_update();
 }
 
-static void menu_btn_ok(void *ctx)
+static void home_btn_ok(void *ctx)
 {
   struct data_s const *g_data_ptr = get_g_data();
 
-  set_ctx(g_data_ptr->tasks[HOME_ID].ctx);
+  set_ctx(g_data_ptr->tasks[MENU_ID].ctx);
   signal_ctx_update();
 }
 
-static void menu_display(void *ctx)
+static void home_display(void *ctx)
 {
   struct data_s const *g_data_ptr = get_g_data();
 
   /* Execute only on update */
-  lv_label_set_text_fmt(g_data_ptr->label, "Menu: %d", ((struct menu_data_s *)g_data_ptr->ctx->data)->btn_value);
-  lv_obj_set_style_bg_color(lv_screen_active(), lv_color_hex(((struct menu_data_s *)g_data_ptr->ctx->data)->bg_color), LV_PART_MAIN);
+  lv_label_set_text_fmt(g_data_ptr->label, "Home: %d", ((struct home_data_s *)g_data_ptr->ctx->data)->btn_value);
+  lv_obj_set_style_bg_color(lv_screen_active(), lv_color_hex(((struct home_data_s *)g_data_ptr->ctx->data)->bg_color), LV_PART_MAIN);
 }
 
-int menu(int argc, char *argv[])
+int home(int argc, char *argv[])
 {
-  set_task_ctx(&menu_ctx, MENU_ID);
+  set_task_ctx(&home_ctx, HOME_ID);
 
   sem_t waiter;
   sem_init(&waiter, 0, 0);

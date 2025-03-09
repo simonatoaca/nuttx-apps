@@ -173,9 +173,11 @@ static int init(void)
 {
   int ret = 0;
   sem_init(&g_data.ctx_update, 1, 0);
+  sem_init(&g_data.ctx_mutex, 1, 1);
 
   sem_init(&g_data.tasks_register, 1, -(NUM_TASKS - 1));
 
+  register_task("home_task", home, HOME_ID);
   register_task("menu_task", menu, MENU_ID);
 
   for (int i = 0; i < NUM_TASKS; i++) {
@@ -183,7 +185,7 @@ static int init(void)
                       g_data.tasks[i].entry, NULL);
     if (ret < 0) {
       int errcode = errno;
-      printf("main: ERROR: Failed to start %s %d\n", g_data.tasks[i].name,
+      printf("Failed to start %s %d\n", g_data.tasks[i].name,
             errcode);
       return EXIT_FAILURE;
     }
@@ -191,7 +193,9 @@ static int init(void)
 
   sem_wait(&g_data.tasks_register);
 
-  g_data.ctx = g_data.tasks[MENU_ID].ctx;
+  g_data.ctx = g_data.tasks[HOME_ID].ctx;
+
+  signal_ctx_update();
 
   return OK;
 }
@@ -213,16 +217,17 @@ struct data_s const *get_g_data(void)
 
 void set_ctx(struct ctx_s *ctx)
 {
-  /* Mutex or smth */
+  sem_wait(&g_data.ctx_mutex);
   g_data.ctx = ctx;
+  sem_post(&g_data.ctx_mutex);
 }
 
-void signal_ctx_change(void)
+void signal_ctx_update(void)
 {
   sem_post(&g_data.ctx_update);
 }
 
-static void wait_ctx_change(void)
+static void wait_ctx_update(void)
 {
   sem_wait(&g_data.ctx_update);
 }
@@ -259,11 +264,11 @@ int main(int argc, FAR char *argv[])
       sched_setparam(0, &param);
     }
 
-#ifndef CONFIG_HACKTORWATCH_DISABLE_CONSOLE
   /* Initialize the NSH library */
 
   nsh_initialize();
 
+#ifndef CONFIG_HACKTORWATCH_DISABLE_CONSOLE
   posix_spawnattr_t attr;
   posix_spawnattr_init(&attr);
   attr.priority  = CONFIG_INIT_PRIORITY;
@@ -322,7 +327,7 @@ int main(int argc, FAR char *argv[])
                     NULL);
 
   while (1) {
-    wait_ctx_change();
+    wait_ctx_update();
 
     /* Execute only on update */
     g_data.ctx->display(&g_data);

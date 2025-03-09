@@ -1,0 +1,29 @@
+#
+# For a description of the syntax of this configuration file,
+# see the file kconfig-language.txt in the NuttX tools repository.
+#
+
+config HACKTORWATCH_HOME
+	tristate "HOME"
+	default y
+	depends on ARCH_BOARD_ESP32S3_HACKTORWATCH
+	---help---
+		Enable HacktorWatch Apps
+
+if HACKTORWATCH_HOME
+
+config HACKTORWATCH_HOME_PROGNAME
+	string "Program name"
+	default "home"
+	---help---
+		This is the name of the program that will be used when the NSH ELF
+		program is installed.
+
+config HACKTORWATCH_HOME_PRIORITY
+	int "home task priority"
+	default 100
+
+config HACKTORWATCH_HOME_STACKSIZE
+	int "home stack size"
+	default 16384 # LVGL Demo stack size ??? TODO: Lower this
+endif
