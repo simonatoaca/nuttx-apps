@@ -1,0 +1,29 @@
+#
+# For a description of the syntax of this configuration file,
+# see the file kconfig-language.txt in the NuttX tools repository.
+#
+
+config HACKTORWATCH_MENU
+	tristate "Menu"
+	default y
+	depends on ARCH_BOARD_ESP32S3_HACKTORWATCH
+	---help---
+		Enable HacktorWatch Apps
+
+if HACKTORWATCH_MENU
+
+config HACKTORWATCH_MENU_PROGNAME
+	string "Program name"
+	default "menu"
+	---help---
+		This is the name of the program that will be used when the NSH ELF
+		program is installed.
+
+config HACKTORWATCH_MENU_PRIORITY
+	int "menu task priority"
+	default 100
+
+config HACKTORWATCH_MENU_STACKSIZE
+	int "menu stack size"
+	default 16384 # LVGL Demo stack size ??? TODO: Lower this
+endif
