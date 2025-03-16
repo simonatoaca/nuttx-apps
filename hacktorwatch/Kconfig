@@ -7,6 +7,4 @@
 
 menu "HacktorWatch"
 source "/home/simona/nuttxspace/apps/hacktorwatch/app_base/Kconfig"
-source "/home/simona/nuttxspace/apps/hacktorwatch/home/Kconfig"
-source "/home/simona/nuttxspace/apps/hacktorwatch/menu/Kconfig"
 endmenu # HacktorWatch

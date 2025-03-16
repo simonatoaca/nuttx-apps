@@ -31,5 +31,9 @@ if(CONFIG_HACKTORWATCH_APP_BASE)
     MODULE
     ${CONFIG_HACKTORWATCH_APP_BASE}
     SRCS
-    app_base.c)
+    app_base.c
+    button_handler.c
+    home.c
+    menu.c
+    haptic.c)
 endif()

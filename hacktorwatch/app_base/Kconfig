@@ -5,7 +5,7 @@
 
 config HACKTORWATCH_APP_BASE
 	tristate "App Base"
-	default y
+	default n
 	depends on ARCH_BOARD_ESP32S3_HACKTORWATCH
 	---help---
 		Enable HacktorWatch Apps

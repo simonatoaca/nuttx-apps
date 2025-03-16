@@ -1,5 +1,5 @@
 /****************************************************************************
- * apps/hacktorwatch/home/home.c
+ * apps/hacktorwatch/app_base/home.c
  *
  * SPDX-License-Identifier: Apache-2.0
  *
@@ -60,10 +60,10 @@ struct home_data_s {
  * Private Function Prototypes
  ****************************************************************************/
 
-static void home_btn_unused(void *ctx);
-static void home_btn_up(void *ctx);
-static void home_btn_down(void *ctx);
-static void home_btn_ok(void *ctx);
+static void home_btn_unused(const void *ctx);
+static void home_btn_up(const void *ctx);
+static void home_btn_down(const void *ctx);
+static void home_btn_ok(const void *ctx);
 static void home_display(void *ctx);
 
 /****************************************************************************
@@ -83,28 +83,28 @@ static const struct ctx_s home_ctx = {
   .btn_action[BUTTON_DOWN] = home_btn_down,
   .display = home_display,
   .data = (void *)&home_data,
-  .data_size = sizeof(home_data)
 };
 
 /****************************************************************************
  * Private Functions
  ****************************************************************************/
 
-static void home_btn_unused(void *ctx)
+static void home_btn_unused(const void *ctx)
 {
   UNUSED(ctx);
 }
 
-static void home_btn_up(void *ctx)
+static void home_btn_up(const void *ctx)
 {
   struct data_s const *g_data_ptr = get_g_data();
   UNUSED(g_data_ptr);
 
   home_data.btn_value++;
+  trigger_haptic(0);
   signal_ctx_update();
 }
 
-static void home_btn_down(void *ctx)
+static void home_btn_down(const void *ctx)
 {
   struct data_s const *g_data_ptr = get_g_data();
   UNUSED(g_data_ptr);
@@ -113,7 +113,7 @@ static void home_btn_down(void *ctx)
   signal_ctx_update();
 }
 
-static void home_btn_ok(void *ctx)
+static void home_btn_ok(const void *ctx)
 {
   struct data_s const *g_data_ptr = get_g_data();
 
@@ -124,14 +124,22 @@ static void home_btn_ok(void *ctx)
 static void home_display(void *ctx)
 {
   struct data_s const *g_data_ptr = get_g_data();
+  lv_color_t current_color = lv_obj_get_style_bg_color(lv_screen_active(), LV_PART_MAIN);
+  lv_color_t wanted_color = lv_color_hex(((struct home_data_s *)g_data_ptr->ctx->data)->bg_color);
 
   /* Execute only on update */
   lv_label_set_text_fmt(g_data_ptr->label, "Home: %d", ((struct home_data_s *)g_data_ptr->ctx->data)->btn_value);
-  lv_obj_set_style_bg_color(lv_screen_active(), lv_color_hex(((struct home_data_s *)g_data_ptr->ctx->data)->bg_color), LV_PART_MAIN);
+
+  if (wanted_color.red != current_color.red || 
+      wanted_color.green != current_color.green ||
+      wanted_color.blue != current_color.blue) {
+    lv_obj_set_style_bg_color(lv_screen_active(), wanted_color, LV_PART_MAIN);
+  }
 }
 
 int home(int argc, char *argv[])
 {
+  /* Important for init */
   set_task_ctx(&home_ctx, HOME_ID);
 
   sem_t waiter;
@@ -139,9 +147,4 @@ int home(int argc, char *argv[])
 
   /* Wait infinity */
   return sem_wait(&waiter);
-}
-
-int main(int argc, char *argv[])
-{
-  return 0;
 }

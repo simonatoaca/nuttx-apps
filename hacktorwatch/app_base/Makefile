@@ -27,6 +27,6 @@ PRIORITY = $(CONFIG_HACKTORWATCH_APP_BASE_PRIORITY)
 STACKSIZE = $(CONFIG_HACKTORWATCH_APP_BASE_STACKSIZE)
 MODULE = $(CONFIG_HACKTORWATCH_APP_BASE)
 
-MAINSRC = app_base.c
+MAINSRC = app_base.c button_handler.c home.c menu.c haptic.c
 
 include $(APPDIR)/Application.mk
