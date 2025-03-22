@@ -194,14 +194,14 @@ int main(int argc, FAR char *argv[])
   nsh_initialize();
 
 #ifndef CONFIG_HACKTORWATCH_DISABLE_CONSOLE
-  posix_spawnattr_t attr;
-  posix_spawnattr_init(&attr);
-  attr.priority  = CONFIG_INIT_PRIORITY;
-  attr.stacksize = CONFIG_INIT_STACKSIZE;
+  // posix_spawnattr_t attr;
+  // posix_spawnattr_init(&attr);
+  // attr.priority  = CONFIG_INIT_PRIORITY;
+  // attr.stacksize = CONFIG_INIT_STACKSIZE;
 
-  ret = task_spawn("nsh_consolemain",
-                   nsh_consolemain,
-                   NULL, &attr, NULL, NULL);
+  // ret = task_spawn("nsh_consolemain",
+  //                  nsh_consolemain,
+  //                  NULL, &attr, NULL, NULL);
 #endif
 
   ret = init();
@@ -225,7 +225,7 @@ int main(int argc, FAR char *argv[])
   }
 
   /* Create a separate task for handling haptic events */
-  ret = task_create("haptic_task", 120, 4096, haptic, NULL);
+  ret = task_create("haptic_task", 110, 4096, haptic, NULL);
 
   if (ret < 0) {
     int errcode = errno;
@@ -260,6 +260,16 @@ int main(int argc, FAR char *argv[])
   /* Create a separate task for handling lvgl updates */
   ret = task_create("lvgl_handler", 110, 4096, lvgl_handler,
                     NULL);
+
+#ifdef CONFIG_PM
+  struct boardioc_pm_ctrl_s pm_ctrl = {
+    .action = BOARDIOC_PM_RELAX,
+  };
+
+  /* Start PM */
+
+  boardctl(BOARDIOC_PM_CONTROL, &pm_ctrl);
+#endif /* CONFIG_PM */
 
   while (1) {
     wait_ctx_update();
