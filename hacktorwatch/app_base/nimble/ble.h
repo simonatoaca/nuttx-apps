@@ -17,20 +17,20 @@
  * under the License.
  */
 
-#ifndef H_BLECENT_
-#define H_BLECENT_
+#ifndef H_BLE_H_
+#define H_BLE_H_
 
+#include <stdbool.h>
+#include "nimble/ble.h"
 #include "os/queue.h"
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
-struct ble_hs_adv_fields;
-struct ble_gap_conn_desc;
-struct ble_hs_cfg;
-union ble_store_value;
-union ble_store_key;
+/** GATT server. */
+#define GATT_SVR_SVC_ALERT_UUID               0x1811
+#define GATT_SVR_CHR_SUP_NEW_ALERT_CAT_UUID   0x2A47
+#define GATT_SVR_CHR_NEW_ALERT                0x2A46
+#define GATT_SVR_CHR_SUP_UNR_ALERT_CAT_UUID   0x2A48
+#define GATT_SVR_CHR_UNR_ALERT_STAT_UUID      0x2A45
+#define GATT_SVR_CHR_ALERT_NOT_CTRL_PT        0x2A44
 
 #define BLECENT_SVC_ALERT_UUID              0x1811
 #define BLECENT_CHR_SUP_NEW_ALERT_CAT_UUID  0x2A47
@@ -39,15 +39,13 @@ union ble_store_key;
 #define BLECENT_CHR_UNR_ALERT_STAT_UUID     0x2A45
 #define BLECENT_CHR_ALERT_NOT_CTRL_PT       0x2A44
 
-/** Misc. */
-void print_bytes(const uint8_t *bytes, int len);
-void print_mbuf(const struct os_mbuf *om);
-char *addr_str(const void *addr);
-void
-print_addr(const void *addr);
-void print_uuid(const ble_uuid_t *uuid);
-void print_conn_desc(const struct ble_gap_conn_desc *desc);
-void print_adv_fields(const struct ble_hs_adv_fields *fields);
+struct ble_hs_adv_fields;
+struct ble_gap_conn_desc;
+struct ble_hs_cfg;
+union ble_store_value;
+union ble_store_key;
+struct ble_hs_cfg;
+struct ble_gatt_register_ctxt;
 
 /** Peer. */
 struct peer_dsc {
@@ -105,5 +103,26 @@ peer_svc_find_uuid(const struct peer *peer, const ble_uuid_t *uuid);
 int peer_delete(uint16_t conn_handle);
 int peer_add(uint16_t conn_handle);
 int peer_init(int max_peers, int max_svcs, int max_chrs, int max_dscs);
+
+void gatt_svr_register_cb(struct ble_gatt_register_ctxt *ctxt, void *arg);
+int gatt_svr_init(void);
+
+/* PHY support */
+#if MYNEWT_VAL(BLEPRPH_LE_PHY_SUPPORT)
+#define CONN_HANDLE_INVALID     0xffff
+
+void phy_init(void);
+void phy_conn_changed(uint16_t handle);
+void phy_update(uint8_t phy);
+#endif
+
+/** Misc. */
+void print_bytes(const uint8_t *bytes, int len);
+void print_mbuf(const struct os_mbuf *om);
+char *addr_str(const void *addr);
+void print_addr(const void *addr);
+void print_uuid(const ble_uuid_t *uuid);
+void print_conn_desc(const struct ble_gap_conn_desc *desc);
+void print_adv_fields(const struct ble_hs_adv_fields *fields);
 
 #endif

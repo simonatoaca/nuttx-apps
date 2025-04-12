@@ -20,6 +20,8 @@
 #
 ############################################################################
 
+#include $(wildcard $(APPDIR)/hacktorwatch/*/Make.defs)
+
 ifneq ($(CONFIG_ARCH_BOARD_ESP32S3_HACKTORWATCH),)
 CONFIGURED_APPS += $(APPDIR)/hacktorwatch/app_base
 endif

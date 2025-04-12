@@ -24,31 +24,30 @@
  * Included Files
  ****************************************************************************/
 
- #include <nuttx/config.h>
- #include <sys/ioctl.h>
- #include <stdio.h>
- #include <stdlib.h>
- #include <fcntl.h>
- #include <signal.h>
- #include <errno.h>
- #include <string.h>
- #include <unistd.h>
- #include <sys/boardctl.h>
- #include <nshlib/nshlib.h>
- #include <hacktorwatch/context.h>
- #include <hacktorwatch/common.h>
+#include <nuttx/config.h>
+#include <sys/ioctl.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <fcntl.h>
+#include <signal.h>
+#include <errno.h>
+#include <string.h>
+#include <unistd.h>
+#include <sys/boardctl.h>
+#include <nshlib/nshlib.h>
+#include <hacktorwatch/context.h>
+#include <hacktorwatch/common.h>
+
+#include <nuttx/timers/timer.h>
+#include <nuttx/input/buttons.h>
+#include <nuttx/semaphore.h>
+
+/****************************************************************************
+* Pre-processor Definitions
+****************************************************************************/
  
- #include <lvgl/lvgl.h>
- #include <nuttx/timers/timer.h>
- #include <nuttx/input/buttons.h>
- #include <nuttx/semaphore.h>
- 
- /****************************************************************************
-  * Pre-processor Definitions
-  ****************************************************************************/
- 
- #define BUTTON_DEVNAME "/dev/buttons"
- #define BUTTONS_SIGNO 31
+#define BUTTON_DEVNAME "/dev/buttons"
+#define BUTTONS_SIGNO 31
 
 int button_handler(int argc, char *argv[])
 {

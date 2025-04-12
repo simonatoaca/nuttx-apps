@@ -28,5 +28,7 @@ STACKSIZE = $(CONFIG_HACKTORWATCH_APP_BASE_STACKSIZE)
 MODULE = $(CONFIG_HACKTORWATCH_APP_BASE)
 
 MAINSRC = app_base.c button_handler.c home.c menu.c haptic.c
+MAINSRC += nimble/ble_peer.c nimble/ble_print_utils.c nimble/gatt_svr.c nimble/nimble_main.c
 
+include $(APPDIR)/wireless/bluetooth/nimble/Makefile.nimble
 include $(APPDIR)/Application.mk

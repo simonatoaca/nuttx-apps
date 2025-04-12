@@ -26,4 +26,5 @@ config HACKTORWATCH_APP_BASE_PRIORITY
 config HACKTORWATCH_APP_BASE_STACKSIZE
 	int "hacktorwatch_main stack size"
 	default 16384 # LVGL Demo stack size
+
 endif

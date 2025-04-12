@@ -38,7 +38,10 @@
 #include <hacktorwatch/context.h>
 #include <hacktorwatch/common.h>
 
+#ifdef CONFIG_GRAPHICS_LVGL
 #include <lvgl/lvgl.h>
+#endif
+
 #include <nuttx/timers/timer.h>
 #include <nuttx/input/buttons.h>
 #include <nuttx/semaphore.h>
@@ -116,6 +119,7 @@ static void home_btn_down(const void *ctx)
 static void home_btn_ok(const void *ctx)
 {
   struct data_s const *g_data_ptr = get_g_data();
+  UNUSED(g_data_ptr);
 
   set_ctx(g_data_ptr->tasks[MENU_ID].ctx);
   signal_ctx_update();
@@ -124,6 +128,9 @@ static void home_btn_ok(const void *ctx)
 static void home_display(void *ctx)
 {
   struct data_s const *g_data_ptr = get_g_data();
+
+#ifdef CONFIG_GRAPHICS_LVGL
+  // lv_lock();
   lv_color_t current_color = lv_obj_get_style_bg_color(lv_screen_active(), LV_PART_MAIN);
   lv_color_t wanted_color = lv_color_hex(((struct home_data_s *)g_data_ptr->ctx->data)->bg_color);
 
@@ -135,6 +142,10 @@ static void home_display(void *ctx)
       wanted_color.blue != current_color.blue) {
     lv_obj_set_style_bg_color(lv_screen_active(), wanted_color, LV_PART_MAIN);
   }
+  // lv_unlock();
+#else
+  UNUSED(g_data_ptr);
+#endif
 }
 
 int home(int argc, char *argv[])

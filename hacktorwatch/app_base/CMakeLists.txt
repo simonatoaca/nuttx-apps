@@ -35,5 +35,16 @@ if(CONFIG_HACKTORWATCH_APP_BASE)
     button_handler.c
     home.c
     menu.c
-    haptic.c)
+    haptic.c
+    ${CMAKE_CURRENT_LIST_DIR}/nimble/nimble_main.c
+    ${CMAKE_CURRENT_LIST_DIR}/nimble/ble_print_utils.c
+    ${CMAKE_CURRENT_LIST_DIR}/nimble/ble_peer.c
+    ${CMAKE_CURRENT_LIST_DIR}/nimble/gatt_svr.c
+    INCLUDE_DIRECTORIES
+    $<GENEX_EVAL:$<TARGET_PROPERTY:nimble,INCLUDE_DIRECTORIES>>
+    DEPENDS
+    )
+  
 endif()
+
+nuttx_generate_kconfig(MENUDESC "HacktorWatch")

@@ -23,7 +23,7 @@
 //  #include "bsp/bsp.h"
  #include "host/ble_hs.h"
  #include "host/ble_uuid.h"
- #include "bleprph.h"
+ #include "ble.h"
  
  /**
   * The vendor specific security test service consists of two characteristics:

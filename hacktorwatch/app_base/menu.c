@@ -38,7 +38,9 @@
 #include <hacktorwatch/context.h>
 #include <hacktorwatch/common.h>
 
+#ifdef CONFIG_GRAPHICS_LVGL
 #include <lvgl/lvgl.h>
+#endif
 #include <nuttx/timers/timer.h>
 #include <nuttx/input/buttons.h>
 #include <nuttx/semaphore.h>
@@ -123,6 +125,8 @@ static void menu_btn_ok(const void *ctx)
 static void menu_display(void *ctx)
 {
   struct data_s const *g_data_ptr = get_g_data();
+#ifdef CONFIG_GRAPHICS_LVGL
+  // lv_lock();
   lv_color_t current_color = lv_obj_get_style_bg_color(lv_screen_active(), LV_PART_MAIN);
   lv_color_t wanted_color = lv_color_hex(((struct menu_data_s *)g_data_ptr->ctx->data)->bg_color);
 
@@ -134,6 +138,10 @@ static void menu_display(void *ctx)
       wanted_color.blue != current_color.blue) {
     lv_obj_set_style_bg_color(lv_screen_active(), wanted_color, LV_PART_MAIN);
   }
+  // lv_unlock();
+#else
+  UNUSED(g_data_ptr);
+#endif
 }
 
 int menu(int argc, char *argv[])

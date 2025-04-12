@@ -35,10 +35,14 @@
 #include <unistd.h>
 #include <sys/boardctl.h>
 #include <nshlib/nshlib.h>
+#include <netutils/netinit.h>
 #include <hacktorwatch/context.h>
 #include <hacktorwatch/common.h>
 
+#ifdef CONFIG_GRAPHICS_LVGL
 #include <lvgl/lvgl.h>
+#endif
+
 #include <nuttx/timers/timer.h>
 #include <nuttx/input/buttons.h>
 #include <nuttx/semaphore.h>
@@ -67,6 +71,7 @@ void *get_ctx_data(struct data_s *data);
 
 static struct data_s g_data = {0};
 
+#ifdef CONFIG_GRAPHICS_LVGL
 static int lvgl_handler(int argc, char *argv[])
 {
 
@@ -77,6 +82,7 @@ static int lvgl_handler(int argc, char *argv[])
 
   return EXIT_FAILURE;
 }
+#endif
 
 static int init(void)
 {
@@ -111,8 +117,14 @@ static int init(void)
     }
   }
 
+#ifdef CONFIG_NIMBLE
+  /* Enable the ble network interface */
+  netlib_ifup("bnep0");
+#endif
+
   sem_wait(&g_data.tasks_register);
 
+  /* Home is the default screen */
   g_data.ctx = g_data.tasks[HOME_ID].ctx;
 
   signal_ctx_update();
@@ -123,6 +135,26 @@ static int init(void)
 /****************************************************************************
  * Public Functions
  ****************************************************************************/
+
+int set_cpu_affinity(uint32_t core_id)
+{
+  int ret;
+  cpu_set_t cpuset;
+
+  sched_lock();
+  CPU_ZERO(&cpuset);
+  CPU_SET(core_id, &cpuset);
+  ret = sched_setaffinity(getpid(), sizeof(cpuset), &cpuset);
+  sched_unlock();
+
+  if (ret)
+  {
+      printf("Failed to set affinity error=%d\n", ret);
+      return -1;
+  }
+
+  return OK;
+}
 
 void *get_ctx_data(struct data_s *data)
 {
@@ -173,35 +205,39 @@ void trigger_haptic(uint8_t effect_id)
 int main(int argc, FAR char *argv[])
 {
   int ret;
+#ifdef CONFIG_GRAPHICS_LVGL
   lv_nuttx_dsc_t info;
   lv_nuttx_result_t result;
+#endif
 
   struct sched_param param;
 
   /* Check the task priority that we were started with */
 
-  sched_getparam(0, &param);
+  sched_getparam(getpid(), &param);
   if (param.sched_priority != CONFIG_SYSTEM_NSH_PRIORITY)
     {
       /* If not then set the priority to the configured priority */
 
       param.sched_priority = CONFIG_SYSTEM_NSH_PRIORITY;
-      sched_setparam(0, &param);
+      sched_setparam(getpid(), &param);
     }
+
+  // set_cpu_affinity(0);
 
   /* Initialize the NSH library */
 
   nsh_initialize();
 
 #ifndef CONFIG_HACKTORWATCH_DISABLE_CONSOLE
-  // posix_spawnattr_t attr;
-  // posix_spawnattr_init(&attr);
-  // attr.priority  = CONFIG_INIT_PRIORITY;
-  // attr.stacksize = CONFIG_INIT_STACKSIZE;
+  posix_spawnattr_t attr;
+  posix_spawnattr_init(&attr);
+  attr.priority  = CONFIG_INIT_PRIORITY;
+  attr.stacksize = CONFIG_INIT_STACKSIZE;
 
-  // ret = task_spawn("nsh_consolemain",
-  //                  nsh_consolemain,
-  //                  NULL, &attr, NULL, NULL);
+  ret = task_spawn("nsh_consolemain",
+                   nsh_consolemain,
+                   NULL, &attr, NULL, NULL);
 #endif
 
   ret = init();
@@ -210,6 +246,7 @@ int main(int argc, FAR char *argv[])
     return EXIT_FAILURE;
   }
 
+#ifdef CONFIG_GRAPHICS_LVGL
   lv_init();
   lv_nuttx_dsc_init(&info);
 
@@ -223,7 +260,7 @@ int main(int argc, FAR char *argv[])
     LV_LOG_ERROR("lv_demos initialization failure!");
     return 1;
   }
-
+#endif
   /* Create a separate task for handling haptic events */
   ret = task_create("haptic_task", 110, 4096, haptic, NULL);
 
@@ -244,8 +281,10 @@ int main(int argc, FAR char *argv[])
     return EXIT_FAILURE;
   }
 
-  /* Change the active screen's background color */
 
+#ifdef CONFIG_GRAPHICS_LVGL
+  /* Change the active screen's background color */
+  lv_lock();
   g_data.screen = lv_obj_create(NULL);
   lv_scr_load(g_data.screen);
   lv_obj_set_style_bg_color(lv_screen_active(), lv_color_hex(0xffffff), LV_PART_MAIN);
@@ -256,10 +295,17 @@ int main(int argc, FAR char *argv[])
   lv_label_set_text(g_data.label, "");
   lv_obj_set_style_text_color(lv_screen_active(), lv_color_hex(0xffffff), LV_PART_MAIN);
   lv_obj_align(g_data.label, LV_ALIGN_CENTER, -20, 0);
+  lv_unlock();
+
 
   /* Create a separate task for handling lvgl updates */
-  ret = task_create("lvgl_handler", 110, 4096, lvgl_handler,
-                    NULL);
+  // ret = task_create("lvgl_handler", 110, 4096, lvgl_handler,
+  //                   NULL);
+#endif
+
+#ifdef CONFIG_NIMBLE
+  nimble(0, NULL);
+#endif
 
 #ifdef CONFIG_PM
   struct boardioc_pm_ctrl_s pm_ctrl = {
@@ -276,10 +322,17 @@ int main(int argc, FAR char *argv[])
 
     /* Execute only on update */
     g_data.ctx->display(&g_data);
+
+    /* Workaround: Called from same thread that manages lv objects
+     * -> avoid race conditions as LVGL is not SMP-compatible by design
+     */
+    lv_timer_handler();
   }
 
+#ifdef CONFIG_GRAPHICS_LVGL
   lv_disp_remove(result.disp);
   lv_deinit();
+#endif
 
   return 0;
 }
