@@ -36,6 +36,7 @@ if(CONFIG_HACKTORWATCH_APP_BASE)
     home.c
     menu.c
     haptic.c
+    notification.c
     ${CMAKE_CURRENT_LIST_DIR}/nimble/nimble_main.c
     ${CMAKE_CURRENT_LIST_DIR}/nimble/ble_print_utils.c
     ${CMAKE_CURRENT_LIST_DIR}/nimble/ble_peer.c

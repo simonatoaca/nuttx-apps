@@ -1,5 +1,5 @@
 /****************************************************************************
- * apps/hacktorwatch/app_base/menu.c
+ * apps/hacktorwatch/app_base/notification.c
  *
  * SPDX-License-Identifier: Apache-2.0
  *
@@ -41,99 +41,99 @@
 #ifdef CONFIG_GRAPHICS_LVGL
 #include <lvgl/lvgl.h>
 #endif
+
 #include <nuttx/timers/timer.h>
 #include <nuttx/input/buttons.h>
 #include <nuttx/semaphore.h>
 
 /****************************************************************************
- * Pre-processor Definitions
- ****************************************************************************/
+* Pre-processor Definitions
+****************************************************************************/
+
 
 /****************************************************************************
- * Private Type Declarations
- ****************************************************************************/
+* Private Type Declarations
+****************************************************************************/
 
-struct menu_data_s {
+struct notif_data_s {
   uint32_t bg_color;
-  int btn_value;
+  uint32_t text_color;
+  char *notification;
 };
 
 /****************************************************************************
- * Private Function Prototypes
- ****************************************************************************/
+* Private Function Prototypes
+****************************************************************************/
 
-static void menu_btn_unused(const void *ctx);
-static void menu_btn_up(const void *ctx);
-static void menu_btn_down(const void *ctx);
-static void menu_btn_ok(const void *ctx);
-static void menu_display(void *ctx);
+static void notif_btn_unused(const void *ctx);
+static void notif_btn_up(const void *ctx);
+static void notif_btn_down(const void *ctx);
+static void notif_btn_ok(const void *ctx);
+static void notif_display(void *ctx);
 
 /****************************************************************************
- * Private Data
- ****************************************************************************/
+* Private Data
+****************************************************************************/
 
 /* Internal to a task */
-static struct menu_data_s menu_data = {
-  .bg_color = ~0x003a57,
-  .btn_value = 0,
+static struct notif_data_s notif_data = {
+  .bg_color = 0x0,
+  .text_color = 0xff,
+  .notification = "None"
 };
 
-static const struct ctx_s menu_ctx = {
-  .btn_action[BUTTON_UNUSED] = menu_btn_unused,
-  .btn_action[BUTTON_OK] = menu_btn_ok,
-  .btn_action[BUTTON_UP] = menu_btn_up,
-  .btn_action[BUTTON_DOWN] = menu_btn_down,
-  .display = menu_display,
-  .data = (void *)&menu_data,
+static const struct ctx_s notif_ctx = {
+  .btn_action[BUTTON_UNUSED] = notif_btn_unused,
+  .btn_action[BUTTON_OK] = notif_btn_ok,
+  .btn_action[BUTTON_UP] = notif_btn_unused,
+  .btn_action[BUTTON_DOWN] = notif_btn_unused,
+  .display = notif_display,
+  .data = (void *)&notif_data,
 };
 
 /****************************************************************************
- * Private Functions
- ****************************************************************************/
+* Private Functions
+****************************************************************************/
 
-static void menu_btn_unused(const void *ctx)
+static void notif_btn_unused(const void *ctx)
 {
   UNUSED(ctx);
 }
 
-static void menu_btn_up(const void *ctx)
+static void notif_btn_up(const void *ctx)
 {
   struct data_s const *g_data_ptr = get_g_data();
   UNUSED(g_data_ptr);
-
-  menu_data.btn_value++;
-  signal_ctx_update();
 }
 
-static void menu_btn_down(const void *ctx)
+static void notif_btn_down(const void *ctx)
 {
   struct data_s const *g_data_ptr = get_g_data();
   UNUSED(g_data_ptr);
-
-  menu_data.btn_value--;
-  signal_ctx_update();
 }
 
-static void menu_btn_ok(const void *ctx)
+static void notif_btn_ok(const void *ctx)
 {
   struct data_s const *g_data_ptr = get_g_data();
+  UNUSED(g_data_ptr);
 
   rewind_ctx();
   signal_ctx_update();
 }
 
-static void menu_display(void *ctx)
+static void notif_display(void *ctx)
 {
   struct data_s const *g_data_ptr = get_g_data();
+
 #ifdef CONFIG_GRAPHICS_LVGL
   // lv_lock();
   lv_color_t current_color = lv_obj_get_style_bg_color(lv_screen_active(), LV_PART_MAIN);
-  lv_color_t wanted_color = lv_color_hex(((struct menu_data_s *)g_data_ptr->ctx->data)->bg_color);
+  lv_color_t wanted_color = lv_color_hex(((struct notif_data_s *)g_data_ptr->ctx->data)->bg_color);
 
   /* Execute only on update */
-  lv_label_set_text_fmt(g_data_ptr->label, "Menu: %d", ((struct menu_data_s *)g_data_ptr->ctx->data)->btn_value);
+  lv_label_set_text_fmt(g_data_ptr->label, "%s\n", ((struct notif_data_s *)g_data_ptr->ctx->data)->notification);
 
-  if (wanted_color.red != current_color.red || 
+  if (wanted_color.red != current_color.red ||
       wanted_color.green != current_color.green ||
       wanted_color.blue != current_color.blue) {
     lv_obj_set_style_bg_color(lv_screen_active(), wanted_color, LV_PART_MAIN);
@@ -144,14 +144,45 @@ static void menu_display(void *ctx)
 #endif
 }
 
-int menu(int argc, char *argv[])
+/****************************************************************************
+* Public Functions
+****************************************************************************/
+
+void set_notification(char *notification)
 {
+  notif_data.notification = notification;
+}
+
+int notif(int argc, char *argv[])
+{
+  mqd_t mq;
+  struct mq_attr attr;
+  int ret;
+  char *notification;
+  struct data_s const *g_data_ptr = get_g_data();
+
   /* Important for init */
-  set_task_ctx(&menu_ctx, MENU_ID);
+  set_task_ctx(&notif_ctx, NOTIF_ID);
 
-  sem_t waiter;
-  sem_init(&waiter, 0, 0);
+  attr.mq_maxmsg  = 5;
+  attr.mq_msgsize = MAX_NOTIFICATION_LEN;
+  attr.mq_flags   = 0;
 
-  /* Wait infinity */
-  return sem_wait(&waiter);
+  mq = mq_open(NOTIF_MQ_NAME, O_CREAT | O_RDONLY, 0666, &attr);
+
+  if (mq < 0) {
+    return EXIT_FAILURE;
+  }
+
+  while(1) {
+    ret = mq_receive(mq, notif_data.notification, MAX_NOTIFICATION_LEN, NULL);
+
+    if (ret < 0) {
+      continue;
+    }
+
+    set_ctx(g_data_ptr->tasks[NOTIF_ID].ctx);
+    signal_ctx_update();
+    trigger_haptic(2);
+  }
 }

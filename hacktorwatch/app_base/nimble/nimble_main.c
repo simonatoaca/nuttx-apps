@@ -100,6 +100,7 @@ static void ble_advertise(void);
 
 static const char *g_gap_name = "HacktorWatch";
 static uint8_t g_own_addr_type;
+static mqd_t notif_mq;
 
 /****************************************************************************
  * Private Functions
@@ -247,7 +248,7 @@ ble_on_disc_complete(const struct peer *peer, int status, void *arg)
 
   /* Read Alert Service */
   ble_read(peer);
-  ble_subscribe(peer);
+  // ble_subscribe(peer);
 }
 
 /**
@@ -294,43 +295,43 @@ ble_print_conn_desc(struct ble_gap_conn_desc *desc)
 static int
 ble_gap_event(struct ble_gap_event *event, void *arg)
 {
-  struct ble_gap_conn_desc desc;
-  // struct ble_hs_adv_fields fields;
   int rc;
-  printf("Gap event\n");
+  struct ble_gap_conn_desc desc;
 
   switch (event->type) {
   case BLE_GAP_EVENT_CONNECT:
       /* A new connection was established or a connection attempt failed. */
       if (event->connect.status == 0) {
-          /* Connection successfully established. */
-          printf( "Connection established ");
+        /* Connection successfully established. */
+        printf( "Connection established ");
 
-          rc = ble_gap_conn_find(event->connect.conn_handle, &desc);
-          assert(rc == 0);
-          ble_print_conn_desc(&desc);
-          printf( "\n");
+        rc = ble_gap_conn_find(event->connect.conn_handle, &desc);
+        assert(rc == 0);
+        ble_print_conn_desc(&desc);
+        printf( "\n");
 
-          /* Remember peer. */
-          rc = peer_add(event->connect.conn_handle);
-          if (rc != 0) {
-              printf( "Failed to add peer; rc=%d\n", rc);
-              return 0;
-          }
+        /* Remember peer. */
+        rc = peer_add(event->connect.conn_handle);
+        if (rc != 0) {
+            printf( "Failed to add peer; rc=%d\n", rc);
+            return 0;
+        }
 
-          /* Perform service discovery. */
-          rc = peer_disc_all(event->connect.conn_handle,
-                            ble_on_disc_complete, NULL);
-          if (rc != 0) {
-              printf( "Failed to discover services; rc=%d\n", rc);
-              return 0;
-          }
+        /* Perform service discovery. */
+        rc = peer_disc_all(event->connect.conn_handle,
+                          ble_on_disc_complete, NULL);
+        if (rc != 0) {
+            printf( "Failed to discover services; rc=%d\n", rc);
+            return 0;
+        }
+
+        mq_send(notif_mq, "connected", MAX_NOTIFICATION_LEN, 0);
       } else {
-          /* Connection attempt failed; resume advertising. */
-          printf( "Error: Connection failed; status=%d\n",
-                      event->connect.status);
+        /* Connection attempt failed; resume advertising. */
+        printf( "Error: Connection failed; status=%d\n",
+                    event->connect.status);
 
-          ble_advertise();
+        ble_advertise();
       }
 
       return 0;
@@ -343,6 +344,7 @@ ble_gap_event(struct ble_gap_event *event, void *arg)
 
       /* Forget about peer. */
       peer_delete(event->disconnect.conn.conn_handle);
+      mq_send(notif_mq, "disconnect", MAX_NOTIFICATION_LEN, 0);
 
       /* Resume advertising. */
       ble_advertise();
@@ -363,6 +365,10 @@ ble_gap_event(struct ble_gap_event *event, void *arg)
       return 0;
 
   case BLE_GAP_EVENT_NOTIFY_RX:
+      struct os_mbuf *om = event->notify_rx.om;
+      char msg[MAX_NOTIFICATION_LEN];
+
+      event->notify_rx.om = NULL;
       /* Peer sent us a notification or indication. */
       printf( "received %s; conn_handle=%d attr_handle=%d "
                         "attr_len=%d\n",
@@ -371,9 +377,11 @@ ble_gap_event(struct ble_gap_event *event, void *arg)
                       "notification",
                   event->notify_rx.conn_handle,
                   event->notify_rx.attr_handle,
-                  OS_MBUF_PKTLEN(event->notify_rx.om));
+                  OS_MBUF_PKTLEN(om));
 
-      /* Attribute data is contained in event->notify_rx.attr_data. */
+      snprintf(msg, om->om_len, "%s", (char *)(om->om_data + 2));
+      mq_send(notif_mq, msg, om->om_len, 0);
+
       return 0;
 
   case BLE_GAP_EVENT_MTU:
@@ -575,6 +583,17 @@ int nimble(int argc, FAR char *argv[])
   struct ble_npl_task s_task_host;
   struct ble_npl_task s_task_hci;
   int                   ret = 0;
+  struct mq_attr attr;
+
+  attr.mq_maxmsg  = 5;
+  attr.mq_msgsize = MAX_NOTIFICATION_LEN;
+  attr.mq_flags   = 0;
+
+  notif_mq = mq_open(NOTIF_MQ_NAME, O_CREAT | O_WRONLY, 0666, &attr);
+
+  if (notif_mq < 0) {
+    return EXIT_FAILURE;
+  }
 
   nimble_port_init();
 

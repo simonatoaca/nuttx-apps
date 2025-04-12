@@ -71,19 +71,6 @@ void *get_ctx_data(struct data_s *data);
 
 static struct data_s g_data = {0};
 
-#ifdef CONFIG_GRAPHICS_LVGL
-static int lvgl_handler(int argc, char *argv[])
-{
-
-  while (1) {
-    lv_timer_handler();
-    usleep(10000);
-  }
-
-  return EXIT_FAILURE;
-}
-#endif
-
 static int init(void)
 {
   int ret = 0;
@@ -105,6 +92,7 @@ static int init(void)
 
   register_task("home_task", home, HOME_ID);
   register_task("menu_task", menu, MENU_ID);
+  register_task("notif_task", notif, NOTIF_ID);
 
   for (int i = 0; i < NUM_TASKS; i++) {
     ret = task_create(g_data.tasks[i].name, 100, 4096,
@@ -170,8 +158,23 @@ struct data_s const *get_g_data(void)
 void set_ctx(struct ctx_s *ctx)
 {
   sem_wait(&g_data.ctx_mutex);
+
+  if (!ctx) {
+    sem_post(&g_data.ctx_mutex);
+    return;
+  }
+
+  /* Save ctx */
+  g_data.ctx_stack = g_data.ctx;
+
+  /* Load new ctx */
   g_data.ctx = ctx;
   sem_post(&g_data.ctx_mutex);
+}
+
+void rewind_ctx(void)
+{
+  set_ctx(g_data.ctx_stack);
 }
 
 void signal_ctx_update(void)
@@ -284,7 +287,7 @@ int main(int argc, FAR char *argv[])
 
 #ifdef CONFIG_GRAPHICS_LVGL
   /* Change the active screen's background color */
-  lv_lock();
+  // lv_lock();
   g_data.screen = lv_obj_create(NULL);
   lv_scr_load(g_data.screen);
   lv_obj_set_style_bg_color(lv_screen_active(), lv_color_hex(0xffffff), LV_PART_MAIN);
@@ -295,12 +298,7 @@ int main(int argc, FAR char *argv[])
   lv_label_set_text(g_data.label, "");
   lv_obj_set_style_text_color(lv_screen_active(), lv_color_hex(0xffffff), LV_PART_MAIN);
   lv_obj_align(g_data.label, LV_ALIGN_CENTER, -20, 0);
-  lv_unlock();
-
-
-  /* Create a separate task for handling lvgl updates */
-  // ret = task_create("lvgl_handler", 110, 4096, lvgl_handler,
-  //                   NULL);
+  // lv_unlock();
 #endif
 
 #ifdef CONFIG_NIMBLE

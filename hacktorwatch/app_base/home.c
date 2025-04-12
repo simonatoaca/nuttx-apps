@@ -119,7 +119,6 @@ static void home_btn_down(const void *ctx)
 static void home_btn_ok(const void *ctx)
 {
   struct data_s const *g_data_ptr = get_g_data();
-  UNUSED(g_data_ptr);
 
   set_ctx(g_data_ptr->tasks[MENU_ID].ctx);
   signal_ctx_update();

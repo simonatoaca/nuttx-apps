@@ -65,8 +65,8 @@
  ****************************************************************************/
 
 struct haptic_data_s {
-  int fd;         /* Force-feedback device fd */
-  int n_effects;  /* Number of uploaded effects */
+  int fd;                        /* Force-feedback device fd */
+  int n_effects;                 /* Number of uploaded effects */
   char *effect_names[N_EFFECTS]; /* Their position should correspond with their id */
 };
 
