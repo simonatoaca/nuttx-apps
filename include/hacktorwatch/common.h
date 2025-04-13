@@ -27,7 +27,7 @@
 struct task_s {
   char *name;
   main_t entry;
-  struct ctx_s *ctx;
+  const struct ctx_s *ctx;
 };
 
 /* Forward definition */
@@ -53,12 +53,12 @@ struct data_s {
 };
 
 struct data_s const *get_g_data(void);
-void set_ctx(struct ctx_s *ctx);
+void set_ctx(const struct ctx_s *ctx);
 void rewind_ctx(void);
 void signal_ctx_update(void);
 void register_task(char *name, main_t entry, uint8_t id);
 void set_task_ctx(const struct ctx_s *ctx, uint8_t id);
-void trigger_haptic(uint8_t effect_id);
+void trigger_haptic(int8_t effect_id);
 int set_cpu_affinity(uint32_t core_id);
 
 #endif

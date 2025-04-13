@@ -141,7 +141,7 @@ static void upload_rom_effect(char *name, int16_t number, uint16_t delay)
   g_haptic_data.n_effects++;
 }
 
-static void play_effect(int number)
+static void play_effect(int8_t number)
 {
   struct ff_event_s play;
 
@@ -169,7 +169,7 @@ char **get_avail_effects(void)
 int haptic(int argc, char *argv[])
 {
   int mq;
-  uint8_t effect_id = 0;
+  int8_t effect_id = 0;
   int ret = 0;
   struct mq_attr attr;
 

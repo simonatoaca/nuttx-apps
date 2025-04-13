@@ -158,7 +158,7 @@ struct data_s const *get_g_data(void)
   return &g_data;
 }
 
-void set_ctx(struct ctx_s *ctx)
+void set_ctx(const struct ctx_s *ctx)
 {
   sem_wait(&g_data.ctx_mutex);
 
@@ -207,9 +207,9 @@ void set_task_ctx(const struct ctx_s *ctx, uint8_t id)
   sem_post(&g_data.tasks_register);
 }
 
-void trigger_haptic(uint8_t effect_id)
+void trigger_haptic(int8_t effect_id)
 {
-  mq_send(g_data.haptic_mq, &effect_id, sizeof(effect_id), 0);
+  mq_send(g_data.haptic_mq, (char *)&effect_id, sizeof(effect_id), 0);
 }
 
 int main(int argc, FAR char *argv[])
@@ -220,35 +220,35 @@ int main(int argc, FAR char *argv[])
   lv_nuttx_result_t result;
 #endif
 
-  struct sched_param param;
+  // struct sched_param param;
 
   /* Check the task priority that we were started with */
 
-  sched_getparam(getpid(), &param);
-  if (param.sched_priority != CONFIG_SYSTEM_NSH_PRIORITY)
-    {
-      /* If not then set the priority to the configured priority */
+  // sched_getparam(getpid(), &param);
+  // if (param.sched_priority != CONFIG_SYSTEM_NSH_PRIORITY)
+  //   {
+  //     /* If not then set the priority to the configured priority */
 
-      param.sched_priority = CONFIG_SYSTEM_NSH_PRIORITY;
-      sched_setparam(getpid(), &param);
-    }
+  //     param.sched_priority = CONFIG_SYSTEM_NSH_PRIORITY;
+  //     sched_setparam(getpid(), &param);
+  //   }
 
   // set_cpu_affinity(0);
 
   /* Initialize the NSH library */
 
-  nsh_initialize();
+//   nsh_initialize();
 
-#ifndef CONFIG_HACKTORWATCH_DISABLE_CONSOLE
-  posix_spawnattr_t attr;
-  posix_spawnattr_init(&attr);
-  attr.priority  = CONFIG_INIT_PRIORITY;
-  attr.stacksize = CONFIG_INIT_STACKSIZE;
+// #ifndef CONFIG_HACKTORWATCH_DISABLE_CONSOLE
+//   posix_spawnattr_t attr;
+//   posix_spawnattr_init(&attr);
+//   attr.priority  = CONFIG_INIT_PRIORITY;
+//   attr.stacksize = CONFIG_INIT_STACKSIZE;
 
-  ret = task_spawn("nsh_consolemain",
-                   nsh_consolemain,
-                   NULL, &attr, NULL, NULL);
-#endif
+//   ret = task_spawn("nsh_consolemain",
+//                    nsh_consolemain,
+//                    NULL, &attr, NULL, NULL);
+// #endif
 
   ret = init();
 

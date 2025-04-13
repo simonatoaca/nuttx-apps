@@ -115,6 +115,7 @@ static void notif_btn_down(const void *ctx)
 static void notif_btn_ok(const void *ctx)
 {
   struct data_s const *g_data_ptr = get_g_data();
+  UNUSED(g_data_ptr);
 
   rewind_ctx();
   signal_ctx_update();
@@ -152,7 +153,6 @@ int notif(int argc, char *argv[])
   mqd_t mq;
   struct mq_attr attr;
   int ret;
-  char *notification;
   struct data_s const *g_data_ptr = get_g_data();
 
   /* Important for init */

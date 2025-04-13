@@ -117,6 +117,7 @@ static void menu_btn_down(const void *ctx)
 static void menu_btn_ok(const void *ctx)
 {
   struct data_s const *g_data_ptr = get_g_data();
+  UNUSED(g_data_ptr);
 
   rewind_ctx();
   signal_ctx_update();

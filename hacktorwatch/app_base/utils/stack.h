@@ -29,7 +29,7 @@
 
 #define CTX_PUSH(stack, ctx) do  {                           \
     stack.prev = (const struct ctx_node_s *)stack.curr;      \
-    stack.curr = ctx;                                        \   
+    stack.curr = ctx;                                        \
 } while(0);
 
 
