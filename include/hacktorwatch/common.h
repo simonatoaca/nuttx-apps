@@ -28,7 +28,12 @@ struct task_s {
   char *name;
   main_t entry;
   struct ctx_s *ctx;
-  sem_t trigger;
+};
+
+/* Forward definition */
+struct ctx_node_s {
+  struct ctx_s *curr;
+  struct ctx_node_s *prev;
 };
 
 struct data_s {
@@ -42,8 +47,8 @@ struct data_s {
   mqd_t haptic_mq;         /* used to trigger vibration */
   mqd_t notif_mq;          /* used to push notifications */
 
-  const struct ctx_s *ctx_stack; /* ctx saved -> maybe make it a stack later? */
-  const struct ctx_s *ctx; /* ctx is modified locally */
+  struct ctx_node_s ctx_stack; /* push ctx so one can rewind to the previous */
+  const struct ctx_s *ctx;     /* ctx is modified locally */
   struct task_s tasks[NUM_TASKS];
 };
 
@@ -55,6 +60,5 @@ void register_task(char *name, main_t entry, uint8_t id);
 void set_task_ctx(const struct ctx_s *ctx, uint8_t id);
 void trigger_haptic(uint8_t effect_id);
 int set_cpu_affinity(uint32_t core_id);
-void set_notification(char *notification);
 
 #endif

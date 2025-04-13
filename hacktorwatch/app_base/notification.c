@@ -115,7 +115,6 @@ static void notif_btn_down(const void *ctx)
 static void notif_btn_ok(const void *ctx)
 {
   struct data_s const *g_data_ptr = get_g_data();
-  UNUSED(g_data_ptr);
 
   rewind_ctx();
   signal_ctx_update();
@@ -147,11 +146,6 @@ static void notif_display(void *ctx)
 /****************************************************************************
 * Public Functions
 ****************************************************************************/
-
-void set_notification(char *notification)
-{
-  notif_data.notification = notification;
-}
 
 int notif(int argc, char *argv[])
 {

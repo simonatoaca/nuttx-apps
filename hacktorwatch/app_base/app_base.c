@@ -38,6 +38,7 @@
 #include <netutils/netinit.h>
 #include <hacktorwatch/context.h>
 #include <hacktorwatch/common.h>
+#include "utils/stack.h"
 
 #ifdef CONFIG_GRAPHICS_LVGL
 #include <lvgl/lvgl.h>
@@ -115,6 +116,8 @@ static int init(void)
   /* Home is the default screen */
   g_data.ctx = g_data.tasks[HOME_ID].ctx;
 
+  CTX_STACK_HEAD(g_data.ctx_stack, g_data.ctx);
+
   signal_ctx_update();
 
   return OK;
@@ -165,7 +168,9 @@ void set_ctx(struct ctx_s *ctx)
   }
 
   /* Save ctx */
-  g_data.ctx_stack = g_data.ctx;
+  if (g_data.ctx != ctx) {
+    CTX_PUSH(g_data.ctx_stack, g_data.ctx);
+  }
 
   /* Load new ctx */
   g_data.ctx = ctx;
@@ -174,7 +179,9 @@ void set_ctx(struct ctx_s *ctx)
 
 void rewind_ctx(void)
 {
-  set_ctx(g_data.ctx_stack);
+  sem_wait(&g_data.ctx_mutex);
+  CTX_POP(g_data.ctx_stack, g_data.ctx);
+  sem_post(&g_data.ctx_mutex);
 }
 
 void signal_ctx_update(void)
@@ -321,7 +328,7 @@ int main(int argc, FAR char *argv[])
     /* Execute only on update */
     g_data.ctx->display(&g_data);
 
-    /* Workaround: Called from same thread that manages lv objects
+    /* Gateway thread: Called from same thread that manages lv objects
      * -> avoid race conditions as LVGL is not SMP-compatible by design
      */
     lv_timer_handler();
