@@ -23,19 +23,19 @@
 #include <stdbool.h>
 #include "hacktorwatch/common.h"
 
-#define CTX_STACK_HEAD(stack, ctx) do {     \
-        stack.curr = ctx;                   \
+#define CTX_STACK_HEAD(stack, ctx) do {                      \
+        stack.curr = ctx;                                    \
     } while(0);
 
-#define CTX_PUSH(stack, ctx) do  {          \
-    stack.prev = stack.curr;                \
-    stack.curr = ctx;                       \
+#define CTX_PUSH(stack, ctx) do  {                           \
+    stack.prev = (const struct ctx_node_s *)stack.curr;      \
+    stack.curr = ctx;                                        \   
 } while(0);
 
 
-#define CTX_POP(stack, ctx)  do {           \
-    ctx = (struct ctx_s *)stack.curr;       \
-    stack.curr = stack.prev;                \
-} while(0);                                 \
+#define CTX_POP(stack, ctx)  do {                            \
+    ctx = (struct ctx_s *)stack.curr;                        \
+    stack.curr = (const struct ctx_s *)stack.prev;           \
+} while(0);                                                  \
 
 #endif

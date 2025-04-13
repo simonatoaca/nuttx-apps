@@ -32,8 +32,8 @@ struct task_s {
 
 /* Forward definition */
 struct ctx_node_s {
-  struct ctx_s *curr;
-  struct ctx_node_s *prev;
+  const struct ctx_s *curr;
+  const struct ctx_node_s *prev;
 };
 
 struct data_s {
