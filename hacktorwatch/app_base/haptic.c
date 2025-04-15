@@ -191,7 +191,7 @@ int haptic(int argc, char *argv[])
   upload_rom_effect("Strong Click 100%%", STRONG_CLICK_100, 10);
   upload_rom_effect("Strong Click 60%%", STRONG_CLICK_60, 10);
   upload_rom_effect("Double Click 100%%", DOUBLE_CLICK_100, 10);
-  upload_constant_effect("Constant 50%%", 20000, 20, 10);
+  upload_constant_effect("Constant 50%%", 0x4000, 600, 10);
 
   while(1) {
     ret = mq_receive(mq, (char *)&effect_id, sizeof(effect_id), NULL);

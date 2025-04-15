@@ -49,7 +49,7 @@
 /****************************************************************************
 * Pre-processor Definitions
 ****************************************************************************/
-
+#define NOTIF_HAPTIC_EFFECT (3)
 
 /****************************************************************************
 * Private Type Declarations
@@ -177,6 +177,6 @@ int notif(int argc, char *argv[])
 
     set_ctx(g_data_ptr->tasks[NOTIF_ID].ctx);
     signal_ctx_update();
-    trigger_haptic(2);
+    trigger_haptic(NOTIF_HAPTIC_EFFECT);
   }
 }
