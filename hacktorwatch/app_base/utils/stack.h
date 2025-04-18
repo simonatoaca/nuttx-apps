@@ -25,13 +25,12 @@
 
 #define CTX_STACK_HEAD(stack, ctx) do {                      \
         stack.curr = ctx;                                    \
-    } while(0);
+} while(0);
 
 #define CTX_PUSH(stack, ctx) do  {                           \
     stack.prev = (const struct ctx_node_s *)stack.curr;      \
     stack.curr = ctx;                                        \
 } while(0);
-
 
 #define CTX_POP(stack, ctx)  do {                            \
     ctx = (struct ctx_s *)stack.curr;                        \

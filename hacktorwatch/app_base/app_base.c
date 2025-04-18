@@ -96,7 +96,7 @@ static int init(void)
   register_task("notif_task", notif, NOTIF_ID);
 
   for (int i = 0; i < NUM_TASKS; i++) {
-    ret = task_create(g_data.tasks[i].name, 100, 4096,
+    ret = task_create(g_data.tasks[i].name, 120, 4096,
                       g_data.tasks[i].entry, NULL);
     if (ret < 0) {
       int errcode = errno;
@@ -220,18 +220,18 @@ int main(int argc, FAR char *argv[])
   lv_nuttx_result_t result;
 #endif
 
-  // struct sched_param param;
+  struct sched_param param;
 
   /* Check the task priority that we were started with */
 
-  // sched_getparam(getpid(), &param);
-  // if (param.sched_priority != CONFIG_SYSTEM_NSH_PRIORITY)
-  //   {
-  //     /* If not then set the priority to the configured priority */
+  sched_getparam(getpid(), &param);
+  if (param.sched_priority != 120)
+    {
+      /* If not then set the priority to the configured priority */
 
-  //     param.sched_priority = CONFIG_SYSTEM_NSH_PRIORITY;
-  //     sched_setparam(getpid(), &param);
-  //   }
+      param.sched_priority = 120;
+      sched_setparam(getpid(), &param);
+    }
 
   // set_cpu_affinity(0);
 
@@ -272,7 +272,7 @@ int main(int argc, FAR char *argv[])
   }
 #endif
   /* Create a separate task for handling haptic events */
-  ret = task_create("haptic_task", 110, 4096, haptic, NULL);
+  ret = task_create("haptic_task", 120, 4096, haptic, NULL);
 
   if (ret < 0) {
     int errcode = errno;
@@ -282,7 +282,7 @@ int main(int argc, FAR char *argv[])
   }
 
   /* Create a separate task for handling button events */
-  ret = task_create("button_task", 110, 4096, button_handler,
+  ret = task_create("button_task", 100, 4096, button_handler,
                     NULL);
   if (ret < 0) {
     int errcode = errno;
@@ -328,10 +328,12 @@ int main(int argc, FAR char *argv[])
     /* Execute only on update */
     g_data.ctx->display(&g_data);
 
+#ifdef CONFIG_GRAPHICS_LVGL
     /* Gateway thread: Called from same thread that manages lv objects
      * -> avoid race conditions as LVGL is not SMP-compatible by design
      */
     lv_timer_handler();
+#endif
   }
 
 #ifdef CONFIG_GRAPHICS_LVGL
