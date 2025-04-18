@@ -120,7 +120,6 @@ static void menu_btn_ok(const void *ctx)
   UNUSED(g_data_ptr);
 
   rewind_ctx();
-  signal_ctx_update();
 }
 
 static void menu_display(void *ctx)

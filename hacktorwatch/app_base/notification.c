@@ -118,7 +118,6 @@ static void notif_btn_ok(const void *ctx)
   UNUSED(g_data_ptr);
 
   rewind_ctx();
-  signal_ctx_update();
 }
 
 static void notif_display(void *ctx)
@@ -176,7 +175,6 @@ int notif(int argc, char *argv[])
     }
 
     set_ctx(g_data_ptr->tasks[NOTIF_ID].ctx);
-    signal_ctx_update();
     trigger_haptic(NOTIF_HAPTIC_EFFECT);
   }
 }

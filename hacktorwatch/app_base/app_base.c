@@ -158,6 +158,23 @@ struct data_s const *get_g_data(void)
   return &g_data;
 }
 
+/**
+ * Signals to the app_base task that a context update
+ * has occured (either the ctx changed, either a field
+ * was updated) -> the display() function specific
+ * to the new ctx is called -> the display is updated.
+ *
+ * Called automatically from set_ctx() and rewind_ctx().
+ */
+void signal_ctx_update(void)
+{
+  sem_post(&g_data.ctx_update);
+}
+
+/**
+ *  Change the current ctx with a new one and
+ *  signal the change to the app_base task.
+ */
 void set_ctx(const struct ctx_s *ctx)
 {
   sem_wait(&g_data.ctx_mutex);
@@ -174,21 +191,27 @@ void set_ctx(const struct ctx_s *ctx)
 
   /* Load new ctx */
   g_data.ctx = ctx;
+
+  signal_ctx_update();
   sem_post(&g_data.ctx_mutex);
 }
 
+/**
+ *  Return to the previous ctx and
+ *  signal the change to the app_base task.
+ */
 void rewind_ctx(void)
 {
   sem_wait(&g_data.ctx_mutex);
   CTX_POP(g_data.ctx_stack, g_data.ctx);
+
+  signal_ctx_update();
   sem_post(&g_data.ctx_mutex);
 }
 
-void signal_ctx_update(void)
-{
-  sem_post(&g_data.ctx_update);
-}
-
+/**
+ * Waits for a signal_ctx_update().
+ */
 static void wait_ctx_update(void)
 {
   sem_wait(&g_data.ctx_update);
