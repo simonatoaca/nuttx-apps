@@ -45,6 +45,7 @@
 #endif
 
 #include <nuttx/timers/timer.h>
+#include <nuttx/timers/watchdog.h>
 #include <nuttx/input/buttons.h>
 #include <nuttx/semaphore.h>
 #include <nuttx/mqueue.h>
@@ -53,17 +54,33 @@
  * Pre-processor Definitions
  ****************************************************************************/
 
+#define WDOG_DEVNAME "/dev/watchdog0"
+#define WDOG_TIMEOUT (2000)
+#define BLE_DEVNAME  "bnep0"
+
 /****************************************************************************
  * Private Type Declarations
  ****************************************************************************/
+
+struct wdog_data_s {
+  int fd;
+  char *devname;
+  uint32_t timeout;
+  struct watchdog_capture_s capture;
+};
 
 /****************************************************************************
  * Private Function Prototypes
  ****************************************************************************/
 
+static int haptic_mq_init(void);
+static int wdog_capture(int irq, FAR void *context, FAR void *arg);
+static int wdog_init(void);
+
 /****************************************************************************
  * Public Function Prototypes
  ****************************************************************************/
+
 void *get_ctx_data(struct data_s *data);
 
 /****************************************************************************
@@ -71,25 +88,40 @@ void *get_ctx_data(struct data_s *data);
  ****************************************************************************/
 
 static struct data_s g_data = {0};
+static struct wdog_data_s g_wdog = {
+  .fd = -1,
+  .devname = WDOG_DEVNAME,
+  .timeout = WDOG_TIMEOUT, /* in ms */
+  .capture = {
+    .newhandler = wdog_capture,
+  }
+};
+
+/****************************************************************************
+ * Private Functions
+ ****************************************************************************/
 
 static int init(void)
 {
   int ret = 0;
-  struct mq_attr attr;
-
-  attr.mq_maxmsg  = 20;
-  attr.mq_msgsize = sizeof(char);
-  attr.mq_flags   = 0;
 
   sem_init(&g_data.ctx_update, 1, 0);
   sem_init(&g_data.ctx_mutex, 1, 1);
   sem_init(&g_data.tasks_register, 1, -(NUM_TASKS - 1));
 
-  g_data.haptic_mq = mq_open(HAPTIC_MQ_NAME, O_CREAT | O_WRONLY, 0666, &attr);
+  ret = haptic_mq_init();
 
-  if (g_data.haptic_mq < 0) {
-    return EXIT_FAILURE;
+  if (ret) {
+    return ret;
   }
+
+  ret = wdog_init();
+
+  if (ret) {
+    return ret;
+  }
+
+  /* Register and create tasks that also represent displays */
 
   register_task("home_task", home, HOME_ID);
   register_task("menu_task", menu, MENU_ID);
@@ -108,7 +140,7 @@ static int init(void)
 
 #ifdef CONFIG_NIMBLE
   /* Enable the ble network interface */
-  netlib_ifup("bnep0");
+  netlib_ifup(BLE_DEVNAME);
 #endif
 
   sem_wait(&g_data.tasks_register);
@@ -121,6 +153,82 @@ static int init(void)
   signal_ctx_update();
 
   return OK;
+}
+
+static int haptic_mq_init(void)
+{
+  struct mq_attr attr;
+
+  attr.mq_maxmsg  = 20;
+  attr.mq_msgsize = sizeof(char);
+  attr.mq_flags   = 0;
+
+  g_data.haptic_mq = mq_open(HAPTIC_MQ_NAME, O_CREAT | O_WRONLY, 0666, &attr);
+
+  if (g_data.haptic_mq < 0) {
+    return EXIT_FAILURE;
+  }
+
+  return OK;
+}
+
+static int wdog_init(void)
+{
+  int ret = 0;
+
+  g_wdog.fd = open(g_wdog.devname, O_RDONLY);
+
+  if (g_wdog.fd < 0) {
+    return EXIT_FAILURE;
+  }
+
+  ret = ioctl(g_wdog.fd, WDIOC_SETTIMEOUT, (unsigned long)g_wdog.timeout);
+
+  if (ret < 0) {
+    return EXIT_FAILURE;
+  }
+
+  ret = ioctl(g_wdog.fd, WDIOC_CAPTURE, (unsigned long)&g_wdog.capture);
+
+  if (ret < 0) {
+    return EXIT_FAILURE;
+  }
+
+  return OK;
+}
+
+static int wdog_capture(int irq, FAR void *context, FAR void *arg)
+{
+  /* Enter Idle */
+
+  relax_once(PM_IDLE_DOMAIN, PM_NORMAL);
+
+  /**
+   *  Stop wdog (we don't know how long the idle will last,
+   *  why let it running?)
+   */
+  ioctl(g_wdog.fd, WDIOC_STOP, 0);
+
+  return OK;
+}
+
+static int start_wdog(void)
+{
+  return ioctl(g_wdog.fd, WDIOC_START, 0);
+}
+
+static int ping_wdog(void)
+{
+  int ret;
+  struct watchdog_status_s status;
+
+  ret = ioctl(g_wdog.fd, WDIOC_GETSTATUS, &status);
+
+  if (!ret && !(status.flags & WDFLAGS_ACTIVE)) {
+    return start_wdog();
+  }
+
+  return ioctl(g_wdog.fd, WDIOC_KEEPALIVE, 0);
 }
 
 /****************************************************************************
@@ -235,6 +343,69 @@ void trigger_haptic(int8_t effect_id)
   mq_send(g_data.haptic_mq, (char *)&effect_id, sizeof(effect_id), 0);
 }
 
+int get_staycount(int domain, int state)
+{
+#ifdef CONFIG_PM
+  struct boardioc_pm_ctrl_s pm_ctrl = {
+    .domain = domain,
+    .action = BOARDIOC_PM_STAYCOUNT,
+    .state = state
+  };
+
+  boardctl(BOARDIOC_PM_CONTROL, (uintptr_t)&pm_ctrl);
+
+  return pm_ctrl.count;
+#else
+  return 0;
+#endif /* CONFIG_PM */
+}
+
+void relax(int domain, int state)
+{
+#ifdef CONFIG_PM
+  struct boardioc_pm_ctrl_s pm_ctrl = {
+    .domain = domain,
+    .action = BOARDIOC_PM_RELAX,
+    .state = state
+  };
+
+  /* Signal Idle can start */
+
+  boardctl(BOARDIOC_PM_CONTROL, (uintptr_t)&pm_ctrl);
+#endif /* CONFIG_PM */
+}
+
+void relax_once(int domain, int state)
+{
+  if (get_staycount(domain, state) == 1)
+    {
+      relax(domain, state);
+    }
+}
+
+void stay(int domain, int state)
+{
+#ifdef CONFIG_PM
+  struct boardioc_pm_ctrl_s pm_ctrl = {
+    .domain = domain,
+    .action = BOARDIOC_PM_STAY,
+    .state = state
+  };
+
+  /* Signal Activity */
+
+  boardctl(BOARDIOC_PM_CONTROL, (uintptr_t)&pm_ctrl);
+#endif /* CONFIG_PM */
+}
+
+void stay_once(int domain, int state)
+{
+  if (get_staycount(domain, state) == 0)
+    {
+      stay(domain, state);
+    }
+}
+
 int main(int argc, FAR char *argv[])
 {
   int ret;
@@ -256,22 +427,11 @@ int main(int argc, FAR char *argv[])
       sched_setparam(getpid(), &param);
     }
 
-  // set_cpu_affinity(0);
+  /* Initialize the NSH library -> if app_base is the entry point */
 
-  /* Initialize the NSH library */
-
-//   nsh_initialize();
-
-// #ifndef CONFIG_HACKTORWATCH_DISABLE_CONSOLE
-//   posix_spawnattr_t attr;
-//   posix_spawnattr_init(&attr);
-//   attr.priority  = CONFIG_INIT_PRIORITY;
-//   attr.stacksize = CONFIG_INIT_STACKSIZE;
-
-//   ret = task_spawn("nsh_consolemain",
-//                    nsh_consolemain,
-//                    NULL, &attr, NULL, NULL);
-// #endif
+  if (&main == CONFIG_INIT_ENTRYPOINT) {
+    nsh_initialize();
+  }
 
   ret = init();
 
@@ -335,15 +495,7 @@ int main(int argc, FAR char *argv[])
   nimble(0, NULL);
 #endif
 
-#ifdef CONFIG_PM
-  struct boardioc_pm_ctrl_s pm_ctrl = {
-    .action = BOARDIOC_PM_RELAX,
-  };
-
-  /* Start PM */
-
-  boardctl(BOARDIOC_PM_CONTROL, &pm_ctrl);
-#endif /* CONFIG_PM */
+  start_wdog();
 
   while (1) {
     wait_ctx_update();
@@ -357,6 +509,8 @@ int main(int argc, FAR char *argv[])
      */
     lv_timer_handler();
 #endif
+
+    ping_wdog();
   }
 
 #ifdef CONFIG_GRAPHICS_LVGL

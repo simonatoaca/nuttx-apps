@@ -61,6 +61,10 @@ struct notif_data_s {
   char *notification;
 };
 
+struct notif_ops_s {
+  CODE int (*receive)(const void *ctx);
+};
+
 /****************************************************************************
 * Private Function Prototypes
 ****************************************************************************/
@@ -71,22 +75,35 @@ static void notif_btn_down(const void *ctx);
 static void notif_btn_ok(const void *ctx);
 static void notif_display(void *ctx);
 
+/* This signature's args must match the btn_behaviour so that
+    it is compatible with WAKEUP_SOURCE() */
+static int receive_notif(const void *ctx);
+
+/* Declare wakeup sources */
+
+WAKEUP_SOURCE(void, notif_btn_ok, PM_IDLE_DOMAIN, PM_NORMAL);
+WAKEUP_SOURCE(int, receive_notif, PM_IDLE_DOMAIN, PM_NORMAL);
+
 /****************************************************************************
 * Private Data
 ****************************************************************************/
+
+static struct notif_ops_s notif_ops = {
+  .receive = WAKEUP_WRAP(receive_notif),
+};
 
 /* Internal to a task */
 static struct notif_data_s notif_data = {
   .bg_color = 0x0,
   .text_color = 0xff,
-  .notification = "None"
+  .notification = "None",
 };
 
 static const struct ctx_s notif_ctx = {
   .btn_action[BUTTON_UNUSED] = notif_btn_unused,
-  .btn_action[BUTTON_OK] = notif_btn_ok,
-  .btn_action[BUTTON_UP] = notif_btn_unused,
-  .btn_action[BUTTON_DOWN] = notif_btn_unused,
+  .btn_action[BUTTON_OK] = WAKEUP_WRAP(notif_btn_ok),
+  .btn_action[BUTTON_UP] = notif_btn_up,
+  .btn_action[BUTTON_DOWN] = notif_btn_down,
   .display = notif_display,
   .data = (void *)&notif_data,
 };
@@ -118,6 +135,13 @@ static void notif_btn_ok(const void *ctx)
   UNUSED(g_data_ptr);
 
   rewind_ctx();
+}
+
+static int receive_notif(const void *ctx)
+{
+  mqd_t *mq = (mqd_t *)ctx;
+
+  return mq_receive(*mq, notif_data.notification, MAX_NOTIFICATION_LEN, NULL);
 }
 
 static void notif_display(void *ctx)
@@ -168,7 +192,7 @@ int notif(int argc, char *argv[])
   }
 
   while(1) {
-    ret = mq_receive(mq, notif_data.notification, MAX_NOTIFICATION_LEN, NULL);
+    ret = notif_ops.receive(&mq);
 
     if (ret < 0) {
       continue;

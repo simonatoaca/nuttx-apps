@@ -68,6 +68,12 @@ static void menu_btn_down(const void *ctx);
 static void menu_btn_ok(const void *ctx);
 static void menu_display(void *ctx);
 
+/* Declare wakeup sources */
+
+WAKEUP_SOURCE(void, menu_btn_up, PM_IDLE_DOMAIN, PM_NORMAL);
+WAKEUP_SOURCE(void, menu_btn_down, PM_IDLE_DOMAIN, PM_NORMAL);
+WAKEUP_SOURCE(void, menu_btn_ok, PM_IDLE_DOMAIN, PM_NORMAL);
+
 /****************************************************************************
  * Private Data
  ****************************************************************************/
@@ -80,9 +86,9 @@ static struct menu_data_s menu_data = {
 
 static const struct ctx_s menu_ctx = {
   .btn_action[BUTTON_UNUSED] = menu_btn_unused,
-  .btn_action[BUTTON_OK] = menu_btn_ok,
-  .btn_action[BUTTON_UP] = menu_btn_up,
-  .btn_action[BUTTON_DOWN] = menu_btn_down,
+  .btn_action[BUTTON_OK] = WAKEUP_WRAP(menu_btn_ok),
+  .btn_action[BUTTON_UP] = WAKEUP_WRAP(menu_btn_up),
+  .btn_action[BUTTON_DOWN] = WAKEUP_WRAP(menu_btn_down),
   .display = menu_display,
   .data = (void *)&menu_data,
 };
@@ -133,7 +139,7 @@ static void menu_display(void *ctx)
   /* Execute only on update */
   lv_label_set_text_fmt(g_data_ptr->label, "Menu: %d", ((struct menu_data_s *)g_data_ptr->ctx->data)->btn_value);
 
-  if (wanted_color.red != current_color.red || 
+  if (wanted_color.red != current_color.red ||
       wanted_color.green != current_color.green ||
       wanted_color.blue != current_color.blue) {
     lv_obj_set_style_bg_color(lv_screen_active(), wanted_color, LV_PART_MAIN);

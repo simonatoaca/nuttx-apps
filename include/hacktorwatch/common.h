@@ -5,6 +5,10 @@
 #include <lvgl/lvgl.h>
 #endif
 
+#ifdef CONFIG_PM
+#include "nuttx/power/pm.h"
+#endif
+
 #include <nuttx/mqueue.h>
 
 #define BUTTON_UNUSED (0)
@@ -60,5 +64,28 @@ void register_task(char *name, main_t entry, uint8_t id);
 void set_task_ctx(const struct ctx_s *ctx, uint8_t id);
 void trigger_haptic(int8_t effect_id);
 int set_cpu_affinity(uint32_t core_id);
+void stay(int domain, int state);
+void relax(int domain, int state);
+int get_staycount(int domain, int state);
+void relax_once(int domain, int state);
+void stay_once(int domain, int state);
+
+#ifdef CONFIG_PM
+/**
+ * Create a wrapper function that calls stay_once(domain, state).
+ * This helps with waking up from an Idle state.
+ * 
+ * The wrapper function is then called using WAKEUP_WRAP(func).
+ * When CONFIG_PM is not used, this does nothing.
+ */
+#define WAKEUP_SOURCE(ret_type, func, domain, state) \
+    static ret_type wakeup_##func(const void *ctx) { stay_once(domain, state); return func(ctx); }
+
+#define WAKEUP_WRAP(func) \
+    wakeup_##func
+#else
+#define WAKEUP_SOURCE(ret, func, domain, state)
+#define WAKEUP_WRAP(func) func
+#endif
 
 #endif
