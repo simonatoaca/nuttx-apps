@@ -28,6 +28,9 @@
 
 #define MAX_NOTIFICATION_LEN (CONFIG_MQ_MAXMSGSIZE)
 
+#define NOTIF_NORMAL (0)
+#define NOTIF_ALERT (1)
+
 struct task_s {
   char *name;
   main_t entry;

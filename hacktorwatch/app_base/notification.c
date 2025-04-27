@@ -49,6 +49,8 @@
 /****************************************************************************
 * Pre-processor Definitions
 ****************************************************************************/
+
+#define NOTIF_MAX_BUF_LEN   (256)
 #define NOTIF_HAPTIC_EFFECT (3)
 
 /****************************************************************************
@@ -59,11 +61,16 @@ struct notif_data_s {
   uint32_t bg_color;
   uint32_t text_color;
   char *notification;
+
+  /* Used just so that this memory is reserved */
+  char padding[NOTIF_MAX_BUF_LEN];
 };
 
 struct notif_ops_s {
   CODE int (*receive)(const void *ctx);
 };
+
+typedef int (*parse_fn)(char *notif, int len);
 
 /****************************************************************************
 * Private Function Prototypes
@@ -82,11 +89,32 @@ static int receive_notif(const void *ctx);
 /* Declare wakeup sources */
 
 WAKEUP_SOURCE(void, notif_btn_ok, PM_IDLE_DOMAIN, PM_NORMAL);
+WAKEUP_SOURCE(void, notif_btn_up, PM_IDLE_DOMAIN, PM_NORMAL);
+WAKEUP_SOURCE(void, notif_btn_down, PM_IDLE_DOMAIN, PM_NORMAL);
 WAKEUP_SOURCE(int, receive_notif, PM_IDLE_DOMAIN, PM_NORMAL);
+
+
+/* Parser functions */
+
+static int parse_normal(char *notif, int len);
+static int parse_als(char *notif, int len);
 
 /****************************************************************************
 * Private Data
 ****************************************************************************/
+
+static const char *alert_types[] = {
+  "Simple Alert",
+  "Email",
+  "News",
+  "Call",
+  "Missed Call",
+  "SMS/MMS",
+  "Voice Mail",
+  "Schedule",
+  "High Prio Alert",
+  "Instant Msg"
+};
 
 static struct notif_ops_s notif_ops = {
   .receive = WAKEUP_WRAP(receive_notif),
@@ -102,10 +130,15 @@ static struct notif_data_s notif_data = {
 static const struct ctx_s notif_ctx = {
   .btn_action[BUTTON_UNUSED] = notif_btn_unused,
   .btn_action[BUTTON_OK] = WAKEUP_WRAP(notif_btn_ok),
-  .btn_action[BUTTON_UP] = notif_btn_up,
-  .btn_action[BUTTON_DOWN] = notif_btn_down,
+  .btn_action[BUTTON_UP] = WAKEUP_WRAP(notif_btn_up),
+  .btn_action[BUTTON_DOWN] = WAKEUP_WRAP(notif_btn_down),
   .display = notif_display,
   .data = (void *)&notif_data,
+};
+
+static const parse_fn parsers[] = {
+  [NOTIF_NORMAL] = parse_normal,
+  [NOTIF_ALERT]  = parse_als
 };
 
 /****************************************************************************
@@ -137,11 +170,66 @@ static void notif_btn_ok(const void *ctx)
   rewind_ctx();
 }
 
+
+static int parse_normal(char *notif, int len)
+{
+  sprintf(notif_data.notification, "%s", notif);
+
+  return 0;
+}
+
+/**
+ * Parse an Alert Service Notification
+ * and populate notification field.
+ *
+ * ---------------------------------
+ * |  1   |  1  |    len - 1     |
+ * | type | new |  alert message |
+ * ---------------------------------
+ *
+ * @return Type of Notification
+ */
+static int parse_als(char *notif, int len)
+{
+  int ret = 0;
+  uint8_t type = *(uint8_t *)(notif);
+  uint8_t new_alerts = *(uint8_t *)(notif + 1);
+  char *message = (char *)(notif + 2);
+
+  if (type < (sizeof(alert_types) / sizeof(alert_types[0])))
+    {
+      ret += sprintf(notif_data.notification, "%s\n", alert_types[type]);
+    }
+
+  if (new_alerts)
+    {
+      ret += sprintf(notif_data.notification + ret, "#New: %d\n", new_alerts);
+    }
+
+  ret += snprintf(notif_data.notification + ret, len - 1, "%s", message);
+
+  return type;
+}
+
 static int receive_notif(const void *ctx)
 {
   mqd_t *mq = (mqd_t *)ctx;
+  char notif[MAX_NOTIFICATION_LEN];
+  unsigned int msg_prio = 0;
+  int ret = 0;
 
-  return mq_receive(*mq, notif_data.notification, MAX_NOTIFICATION_LEN, NULL);
+  ret = mq_receive(*mq, notif, MAX_NOTIFICATION_LEN, &msg_prio);
+
+  if (ret < 0)
+    return ret;
+
+  /**
+   *  The message priority selects the type of parser used
+   *  (So we can differentiate between types of messages)
+   */
+  ret = parsers[msg_prio](notif, ret);
+
+  return ret;
 }
 
 static void notif_display(void *ctx)
@@ -201,4 +289,7 @@ int notif(int argc, char *argv[])
     set_ctx(g_data_ptr->tasks[NOTIF_ID].ctx);
     trigger_haptic(NOTIF_HAPTIC_EFFECT);
   }
+
+  /* Should never get here */
+  return EXIT_FAILURE;
 }

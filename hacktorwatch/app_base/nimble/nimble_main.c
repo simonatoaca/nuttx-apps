@@ -297,6 +297,8 @@ ble_gap_event(struct ble_gap_event *event, void *arg)
 {
   int rc;
   struct ble_gap_conn_desc desc;
+  char msg[MAX_NOTIFICATION_LEN];
+  memset(msg, 0, MAX_NOTIFICATION_LEN);
 
   switch (event->type) {
   case BLE_GAP_EVENT_CONNECT:
@@ -317,6 +319,8 @@ ble_gap_event(struct ble_gap_event *event, void *arg)
             return 0;
         }
 
+        // rc = ble_gap_security_initiate(event->connect.conn_handle);
+
         /* Perform service discovery. */
         rc = peer_disc_all(event->connect.conn_handle,
                           ble_on_disc_complete, NULL);
@@ -324,8 +328,9 @@ ble_gap_event(struct ble_gap_event *event, void *arg)
             printf( "Failed to discover services; rc=%d\n", rc);
             return 0;
         }
-
-        mq_send(notif_mq, "connected", MAX_NOTIFICATION_LEN, 0);
+        
+        sprintf(msg, "connected\nstatus 0x%02x", rc);
+        mq_send(notif_mq, msg, MAX_NOTIFICATION_LEN, NOTIF_NORMAL);
       } else {
         /* Connection attempt failed; resume advertising. */
         printf( "Error: Connection failed; status=%d\n",
@@ -334,6 +339,22 @@ ble_gap_event(struct ble_gap_event *event, void *arg)
         ble_advertise();
       }
 
+      return 0;
+  
+  case BLE_GAP_EVENT_PAIRING_COMPLETE:
+      if (event->pairing_complete.status == 0) {
+        mq_send(notif_mq, "pair complete", MAX_NOTIFICATION_LEN, NOTIF_NORMAL);
+
+        /* Perform service discovery. */
+        rc = peer_disc_all(event->pairing_complete.conn_handle,
+              ble_on_disc_complete, NULL);
+        if (rc != 0) {
+            printf( "Failed to discover services; rc=%d\n", rc);
+            return 0;
+        }
+      } else {
+        mq_send(notif_mq, "pair problem", MAX_NOTIFICATION_LEN, NOTIF_NORMAL);
+      }
       return 0;
 
   case BLE_GAP_EVENT_DISCONNECT:
@@ -344,7 +365,9 @@ ble_gap_event(struct ble_gap_event *event, void *arg)
 
       /* Forget about peer. */
       peer_delete(event->disconnect.conn.conn_handle);
-      mq_send(notif_mq, "disconnect", MAX_NOTIFICATION_LEN, 0);
+
+      sprintf(msg, "disconnected\nreason %d", event->disconnect.reason);
+      mq_send(notif_mq, msg, MAX_NOTIFICATION_LEN, NOTIF_NORMAL);
 
       /* Resume advertising. */
       ble_advertise();
@@ -366,7 +389,6 @@ ble_gap_event(struct ble_gap_event *event, void *arg)
 
   case BLE_GAP_EVENT_NOTIFY_RX:
       struct os_mbuf *om = event->notify_rx.om;
-      char msg[MAX_NOTIFICATION_LEN];
 
       event->notify_rx.om = NULL;
       /* Peer sent us a notification or indication. */
@@ -379,9 +401,7 @@ ble_gap_event(struct ble_gap_event *event, void *arg)
                   event->notify_rx.attr_handle,
                   OS_MBUF_PKTLEN(om));
 
-      snprintf(msg, om->om_len, "%s", (char *)(om->om_data + 2));
-      mq_send(notif_mq, msg, om->om_len, 0);
-
+      mq_send(notif_mq, (char *)om->om_data, om->om_len, NOTIF_ALERT);
       return 0;
 
   case BLE_GAP_EVENT_MTU:
@@ -408,6 +428,8 @@ ble_gap_event(struct ble_gap_event *event, void *arg)
       return BLE_GAP_REPEAT_PAIRING_RETRY;
 
   default:
+      // sprintf(msg, "event 0x%02x", event->type);
+      // mq_send(notif_mq, msg, MAX_NOTIFICATION_LEN, 0);
       return 0;
   }
 }
@@ -524,8 +546,14 @@ static FAR void *ble_host_task(FAR void *param)
 {
   ble_hs_cfg.reset_cb = ble_on_reset;
   ble_hs_cfg.sync_cb = ble_on_sync;
-//   ble_hs_cfg.gatts_register_cb = gatt_svr_register_cb;
+  ble_hs_cfg.gatts_register_cb = gatt_svr_register_cb;
   ble_hs_cfg.store_status_cb = ble_store_util_status_rr;
+
+  ble_hs_cfg.sm_bonding = 1;
+  ble_hs_cfg.sm_sc = 1;
+  ble_hs_cfg.sm_io_cap = BLE_SM_IO_CAP_NO_IO;
+  ble_hs_cfg.sm_our_key_dist |= BLE_SM_PAIR_KEY_DIST_ENC | BLE_SM_PAIR_KEY_DIST_ID;
+  ble_hs_cfg.sm_their_key_dist |= BLE_SM_PAIR_KEY_DIST_ENC | BLE_SM_PAIR_KEY_DIST_ID;
 
   ble_svc_gap_device_name_set(g_gap_name);
   set_cpu_affinity(1);
