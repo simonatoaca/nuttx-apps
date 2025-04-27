@@ -74,8 +74,11 @@ struct wdog_data_s {
  ****************************************************************************/
 
 static int haptic_mq_init(void);
+
+#ifdef CONFIG_PM
 static int wdog_capture(int irq, FAR void *context, FAR void *arg);
 static int wdog_init(void);
+#endif /* CONFIG_PM */
 
 /****************************************************************************
  * Public Function Prototypes
@@ -88,6 +91,8 @@ void *get_ctx_data(struct data_s *data);
  ****************************************************************************/
 
 static struct data_s g_data = {0};
+
+#ifdef CONFIG_PM
 static struct wdog_data_s g_wdog = {
   .fd = -1,
   .devname = WDOG_DEVNAME,
@@ -96,6 +101,7 @@ static struct wdog_data_s g_wdog = {
     .newhandler = wdog_capture,
   }
 };
+#endif /* CONFIG_PM */
 
 /****************************************************************************
  * Private Functions
@@ -115,11 +121,13 @@ static int init(void)
     return ret;
   }
 
+#ifdef CONFIG_PM
   ret = wdog_init();
 
   if (ret) {
     return ret;
   }
+#endif /* CONFIG_PM */
 
   /* Register and create tasks that also represent displays */
 
@@ -172,6 +180,7 @@ static int haptic_mq_init(void)
   return OK;
 }
 
+#ifdef CONFIG_PM
 static int wdog_init(void)
 {
   int ret = 0;
@@ -230,6 +239,7 @@ static int ping_wdog(void)
 
   return ioctl(g_wdog.fd, WDIOC_KEEPALIVE, 0);
 }
+#endif /* CONFIG_PM */
 
 /****************************************************************************
  * Public Functions
@@ -493,9 +503,11 @@ int main(int argc, FAR char *argv[])
 
 #ifdef CONFIG_NIMBLE
   nimble(0, NULL);
-#endif
+#endif /* CONFIG_NIMBLE */
 
+#ifdef CONFIG_PM
   start_wdog();
+#endif /* CONFIG_PM */
 
   while (1) {
     wait_ctx_update();
@@ -508,9 +520,11 @@ int main(int argc, FAR char *argv[])
      * -> avoid race conditions as LVGL is not SMP-compatible by design
      */
     lv_timer_handler();
-#endif
+#endif /* CONFIG_GRAPHICS_LVGL */
 
+#ifdef CONFIG_PM
     ping_wdog();
+#endif /* CONFIG_PM */
   }
 
 #ifdef CONFIG_GRAPHICS_LVGL
