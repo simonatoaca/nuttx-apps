@@ -58,6 +58,7 @@
 ****************************************************************************/
 
 struct notif_data_s {
+  uint8_t magic;
   uint32_t bg_color;
   uint32_t text_color;
   char *notification;
@@ -121,11 +122,7 @@ static struct notif_ops_s notif_ops = {
 };
 
 /* Internal to a task */
-static struct notif_data_s notif_data = {
-  .bg_color = 0x0,
-  .text_color = 0xff,
-  .notification = "None",
-};
+RTC_BSS_ATTR static struct notif_data_s notif_data;
 
 static const struct ctx_s notif_ctx = {
   .btn_action[BUTTON_UNUSED] = notif_btn_unused,
@@ -255,6 +252,19 @@ static void notif_display(void *ctx)
 #endif
 }
 
+static void init_local_ctx(void)
+{
+  if (notif_data.magic == NOTIF_MAGIC_NUM)
+    {
+      return;
+    }
+
+  notif_data.magic = NOTIF_MAGIC_NUM;
+  notif_data.bg_color = 0x0;
+  notif_data.text_color = 0xff;
+  notif_data.notification = "None";
+}
+
 /****************************************************************************
 * Public Functions
 ****************************************************************************/
@@ -268,6 +278,8 @@ int notif(int argc, char *argv[])
 
   /* Important for init */
   set_task_ctx(&notif_ctx, NOTIF_ID);
+
+  init_local_ctx();
 
   attr.mq_maxmsg  = 5;
   attr.mq_msgsize = MAX_NOTIFICATION_LEN;

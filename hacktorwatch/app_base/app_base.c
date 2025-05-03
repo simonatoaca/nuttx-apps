@@ -158,7 +158,7 @@ static int init(void)
 
   CTX_STACK_HEAD(g_data.ctx_stack, g_data.ctx);
 
-  signal_ctx_update();
+  // signal_ctx_update();
 
   return OK;
 }

@@ -54,6 +54,7 @@
  ****************************************************************************/
 
 struct menu_data_s {
+  uint8_t magic;
   uint32_t bg_color;
   int btn_value;
 };
@@ -79,10 +80,7 @@ WAKEUP_SOURCE(void, menu_btn_ok, PM_IDLE_DOMAIN, PM_NORMAL);
  ****************************************************************************/
 
 /* Internal to a task */
-static struct menu_data_s menu_data = {
-  .bg_color = ~0x003a57,
-  .btn_value = 0,
-};
+RTC_BSS_ATTR static struct menu_data_s menu_data;
 
 static const struct ctx_s menu_ctx = {
   .btn_action[BUTTON_UNUSED] = menu_btn_unused,
@@ -150,10 +148,24 @@ static void menu_display(void *ctx)
 #endif
 }
 
+static void init_local_ctx(void)
+{
+  if (menu_data.magic == MENU_MAGIC_NUM)
+    {
+      return;
+    }
+
+  menu_data.magic = MENU_MAGIC_NUM;
+  menu_data.bg_color = ~0x003a57;
+  menu_data.btn_value = 0;
+}
+
 int menu(int argc, char *argv[])
 {
   /* Important for init */
   set_task_ctx(&menu_ctx, MENU_ID);
+
+  init_local_ctx();
 
   sem_t waiter;
   sem_init(&waiter, 0, 0);

@@ -11,25 +11,29 @@
 
 #include <nuttx/mqueue.h>
 
-#define BUTTON_UNUSED (0)
-#define BUTTON_OK (1)
-#define BUTTON_UP (2)
-#define BUTTON_DOWN (3)
+enum task_ctx_id {
+  HOME_ID,
+  MENU_ID,
+  NOTIF_ID,
+  NUM_TASKS
+};
 
-
-#define NUM_TASKS (3) // TODO: Update this
-
-#define HOME_ID  (0)
-#define MENU_ID  (1)
-#define NOTIF_ID (2)
+/**
+ *  Used to validate data stored in RTC memory
+ */
+enum task_ctx_magic_num {
+  HOME_MAGIC_NUM = 0x50,
+  MENU_MAGIC_NUM,
+  NOTIF_MAGIC_NUM
+};
 
 #define HAPTIC_MQ_NAME "haptic"
-#define NOTIF_MQ_NAME "notif"
+#define NOTIF_MQ_NAME  "notif"
 
 #define MAX_NOTIFICATION_LEN (CONFIG_MQ_MAXMSGSIZE)
 
 #define NOTIF_NORMAL (0)
-#define NOTIF_ALERT (1)
+#define NOTIF_ALERT  (1)
 
 struct task_s {
   char *name;
@@ -77,7 +81,7 @@ void stay_once(int domain, int state);
 /**
  * Create a wrapper function that calls stay_once(domain, state).
  * This helps with waking up from an Idle state.
- * 
+ *
  * The wrapper function is then called using WAKEUP_WRAP(func).
  * When CONFIG_PM is not used, this does nothing.
  */
@@ -89,6 +93,16 @@ void stay_once(int domain, int state);
 #else
 #define WAKEUP_SOURCE(ret, func, domain, state)
 #define WAKEUP_WRAP(func) func
+#endif
+
+#ifdef CONFIG_PM
+#define RTC_DATA_ATTR _SECTION_ATTR(".rtc.data.", __COUNTER__)
+#define RTC_BSS_ATTR __attribute__((section(".rtc.bss")))
+#define _SECTION_ATTR(SECTION, COUNTER)  __attribute__((section(SECTION _STRINGIFY(COUNTER))))
+#define _STRINGIFY(num) #num
+#else
+#define RTC_DATA_ATTR
+#define RTC_BSS_ATTR
 #endif
 
 #endif

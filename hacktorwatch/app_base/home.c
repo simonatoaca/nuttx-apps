@@ -55,6 +55,7 @@
  ****************************************************************************/
 
 struct home_data_s {
+  uint8_t magic;
   uint32_t bg_color;
   int btn_value;
 };
@@ -80,10 +81,7 @@ WAKEUP_SOURCE(void, home_btn_ok, PM_IDLE_DOMAIN, PM_NORMAL);
  ****************************************************************************/
 
 /* Internal to a task */
-static struct home_data_s home_data = {
-  .bg_color = 0x003a57,
-  .btn_value = 0,
-};
+RTC_BSS_ATTR static struct home_data_s home_data;
 
 static const struct ctx_s home_ctx = {
   .btn_action[BUTTON_UNUSED] = home_btn_unused,
@@ -152,10 +150,24 @@ static void home_display(void *ctx)
 #endif
 }
 
+static void init_local_ctx(void)
+{
+  if (home_data.magic == HOME_MAGIC_NUM)
+    {
+      return;
+    }
+
+  home_data.magic = HOME_MAGIC_NUM;
+  home_data.bg_color = 0x003a57;
+  home_data.btn_value = 0;
+}
+
 int home(int argc, char *argv[])
 {
   /* Important for init */
   set_task_ctx(&home_ctx, HOME_ID);
+
+  init_local_ctx();
 
   sem_t waiter;
   sem_init(&waiter, 0, 0);

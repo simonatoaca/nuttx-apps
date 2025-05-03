@@ -1,7 +1,13 @@
 #ifndef HACKTORWATCH_CONTEXT_H_
 #define HACKTORWATCH_CONTEXT_H_
 
-#define NUM_BTNS (3)
+enum button_id {
+  BUTTON_UNUSED,
+  BUTTON_OK,
+  BUTTON_UP,
+  BUTTON_DOWN,
+  NUM_BTNS
+};
 
 typedef void (*btn_behaviour)(const void *ctx);
 typedef void (*display_func)(void *ctx);
