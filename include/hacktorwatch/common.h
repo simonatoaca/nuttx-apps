@@ -48,6 +48,20 @@ struct ctx_node_s {
   const struct ctx_node_s *prev;
 };
 
+struct time_t {
+  uint16_t year;
+  uint8_t month;
+  uint8_t day;
+  uint8_t hours;
+  uint8_t minutes;
+  uint8_t seconds;
+
+  /* -- util here was compatible with the BLE Current Time SVC -- */
+
+  /* Reference for Deep Sleep -> compute how much time spent in sleep */
+  struct timespec tp;
+};
+
 struct data_s {
 #ifdef CONFIG_GRAPHICS_LVGL
   lv_obj_t *screen;
@@ -60,14 +74,8 @@ struct data_s {
   mqd_t haptic_mq;         /* used to trigger vibration */
   mqd_t notif_mq;          /* used to push notifications */
 
-  struct {
-    uint16_t year;
-    uint8_t month;
-    uint8_t day;
-    uint8_t hours;
-    uint8_t minutes;
-    uint8_t seconds;
-  } time;
+  /* This points to data in RTC memory */
+  struct time_t *time;
 
   struct ctx_node_s ctx_stack; /* push ctx so one can rewind to the previous */
   const struct ctx_s *ctx;     /* ctx is modified locally */

@@ -94,6 +94,8 @@ void *get_ctx_data(struct data_s *data);
 
 static struct data_s g_data = {0};
 
+RTC_BSS_ATTR static struct time_t rtc_saved_time_data;
+
 #ifdef CONFIG_PM
 static struct wdog_data_s g_wdog = {
   .fd = -1,
@@ -112,6 +114,11 @@ static struct wdog_data_s g_wdog = {
 static int init(void)
 {
   int ret = 0;
+  struct timespec tp;
+
+  nxclock_gettime(0, &tp);
+  g_data.time = &rtc_saved_time_data;
+  add_g_data_time(tp.tv_sec - g_data.time->tp.tv_sec);
 
   sem_init(&g_data.ctx_update, 1, 0);
   sem_init(&g_data.ctx_mutex, 1, 1);
@@ -159,8 +166,6 @@ static int init(void)
   g_data.ctx = g_data.tasks[HOME_ID].ctx;
 
   CTX_STACK_HEAD(g_data.ctx_stack, g_data.ctx);
-
-  // signal_ctx_update();
 
   return OK;
 }
@@ -287,25 +292,15 @@ struct data_s const *get_g_data(void)
  */
 void set_g_data_time(void *time_data)
 {
-  struct time_t {
-    uint16_t year;
-    uint8_t  month;
-    uint8_t  day;
-    uint8_t  hours;
-    uint8_t  minutes;
-    uint8_t  seconds;
-  };
+  *(g_data.time) = *((struct time_t *)time_data);
 
-  g_data.time.year    = ((struct time_t*)time_data)->year;
-  g_data.time.month   = ((struct time_t*)time_data)->month;
-  g_data.time.day     = ((struct time_t*)time_data)->day;
-  g_data.time.hours   = ((struct time_t*)time_data)->hours;
-  g_data.time.minutes = ((struct time_t*)time_data)->minutes;
-  g_data.time.seconds = ((struct time_t*)time_data)->seconds;
+  /* Update timestamp for Deep Sleep */
+  nxclock_gettime(0, &g_data.time->tp);
 }
 
 void add_g_data_time(uint64_t time_elapsed_seconds)
 {
+  struct time_t *time = g_data.time;
   uint64_t to_minutes = time_elapsed_seconds / 60;
   uint64_t to_hours = to_minutes / 60;
   uint64_t to_days = to_hours / 24;
@@ -314,15 +309,18 @@ void add_g_data_time(uint64_t time_elapsed_seconds)
   to_minutes -= to_hours * 60;
   time_elapsed_seconds -= to_minutes * 60;
 
-  g_data.time.seconds += time_elapsed_seconds;
-  g_data.time.minutes += to_minutes + (g_data.time.seconds / 60);
-  g_data.time.hours   += to_hours + (g_data.time.minutes / 60);
-  g_data.time.day     += to_days + (g_data.time.hours / 24);
+  time->seconds += time_elapsed_seconds;
+  time->minutes += to_minutes + (time->seconds / 60);
+  time->hours   += to_hours + (time->minutes / 60);
+  time->day     += to_days + (time->hours / 24);
 
-  g_data.time.seconds %= 60;
-  g_data.time.minutes %= 60;
-  g_data.time.hours   %= 60;
-  g_data.time.day     %= 24;
+  time->seconds %= 60;
+  time->minutes %= 60;
+  time->hours   %= 60;
+  time->day     %= 24;
+
+  /* Update timestamp for Deep Sleep */
+  nxclock_gettime(0, &time->tp);
 }
 
 /**
