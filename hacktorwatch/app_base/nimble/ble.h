@@ -32,12 +32,18 @@
 #define GATT_SVR_CHR_UNR_ALERT_STAT_UUID      0x2A45
 #define GATT_SVR_CHR_ALERT_NOT_CTRL_PT        0x2A44
 
+#define GATT_SVR_SVC_CURRENT_TIME             0x1805
+
 #define BLECENT_SVC_ALERT_UUID              0x1811
 #define BLECENT_CHR_SUP_NEW_ALERT_CAT_UUID  0x2A47
 #define BLECENT_CHR_NEW_ALERT               0x2A46
 #define BLECENT_CHR_SUP_UNR_ALERT_CAT_UUID  0x2A48
 #define BLECENT_CHR_UNR_ALERT_STAT_UUID     0x2A45
 #define BLECENT_CHR_ALERT_NOT_CTRL_PT       0x2A44
+
+#define BLECENT_SVC_CURRENT_TIME            0x1805
+#define BLECENT_CHR_CURRENT_TIME            0x2A2B
+#define BLECENT_CHR_LOCAL_TIME              0x2A0F
 
 struct ble_hs_adv_fields;
 struct ble_gap_conn_desc;

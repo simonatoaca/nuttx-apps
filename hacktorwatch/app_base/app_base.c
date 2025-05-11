@@ -46,6 +46,7 @@
 
 #include <nuttx/timers/timer.h>
 #include <nuttx/timers/watchdog.h>
+#include <nuttx/clock.h>
 #include <nuttx/input/buttons.h>
 #include <nuttx/semaphore.h>
 #include <nuttx/mqueue.h>
@@ -61,13 +62,14 @@
 /****************************************************************************
  * Private Type Declarations
  ****************************************************************************/
-
+#ifdef CONFIG_PM
 struct wdog_data_s {
   int fd;
   char *devname;
   uint32_t timeout;
   struct watchdog_capture_s capture;
 };
+#endif /* CONFIG_PM */
 
 /****************************************************************************
  * Private Function Prototypes
@@ -225,8 +227,14 @@ static int start_wdog(void)
 {
   return ioctl(g_wdog.fd, WDIOC_START, 0);
 }
+#endif /* CONFIG_PM*/
 
-static int ping_wdog(void)
+/****************************************************************************
+ * Public Functions
+ ****************************************************************************/
+
+#ifdef CONFIG_PM
+int ping_wdog(void)
 {
   int ret;
   struct watchdog_status_s status;
@@ -240,10 +248,6 @@ static int ping_wdog(void)
   return ioctl(g_wdog.fd, WDIOC_KEEPALIVE, 0);
 }
 #endif /* CONFIG_PM */
-
-/****************************************************************************
- * Public Functions
- ****************************************************************************/
 
 int set_cpu_affinity(uint32_t core_id)
 {
@@ -274,6 +278,51 @@ void *get_ctx_data(struct data_s *data)
 struct data_s const *get_g_data(void)
 {
   return &g_data;
+}
+
+/**
+ *  Updates the date/time.
+ *  @param time_data ptr to the structure received
+ *  from Current Time Service
+ */
+void set_g_data_time(void *time_data)
+{
+  struct time_t {
+    uint16_t year;
+    uint8_t  month;
+    uint8_t  day;
+    uint8_t  hours;
+    uint8_t  minutes;
+    uint8_t  seconds;
+  };
+
+  g_data.time.year    = ((struct time_t*)time_data)->year;
+  g_data.time.month   = ((struct time_t*)time_data)->month;
+  g_data.time.day     = ((struct time_t*)time_data)->day;
+  g_data.time.hours   = ((struct time_t*)time_data)->hours;
+  g_data.time.minutes = ((struct time_t*)time_data)->minutes;
+  g_data.time.seconds = ((struct time_t*)time_data)->seconds;
+}
+
+void add_g_data_time(uint64_t time_elapsed_seconds)
+{
+  uint64_t to_minutes = time_elapsed_seconds / 60;
+  uint64_t to_hours = to_minutes / 60;
+  uint64_t to_days = to_hours / 24;
+
+  to_hours -= to_days * 24;
+  to_minutes -= to_hours * 60;
+  time_elapsed_seconds -= to_minutes * 60;
+
+  g_data.time.seconds += time_elapsed_seconds;
+  g_data.time.minutes += to_minutes + (g_data.time.seconds / 60);
+  g_data.time.hours   += to_hours + (g_data.time.minutes / 60);
+  g_data.time.day     += to_days + (g_data.time.hours / 24);
+
+  g_data.time.seconds %= 60;
+  g_data.time.minutes %= 60;
+  g_data.time.hours   %= 60;
+  g_data.time.day     %= 24;
 }
 
 /**
@@ -484,21 +533,27 @@ int main(int argc, FAR char *argv[])
     return EXIT_FAILURE;
   }
 
+  /* Create a separate task for handling time */
+  ret = task_create("timer_task", 100, 4096, timer_handler,
+      NULL);
+  if (ret < 0) {
+    int errcode = errno;
+    printf("main: ERROR: Failed to start timer_task: %d\n",
+    errcode);
+    return EXIT_FAILURE;
+  }
 
 #ifdef CONFIG_GRAPHICS_LVGL
-  /* Change the active screen's background color */
-  // lv_lock();
   g_data.screen = lv_obj_create(NULL);
   lv_scr_load(g_data.screen);
   lv_obj_set_style_bg_color(lv_screen_active(), lv_color_hex(0xffffff), LV_PART_MAIN);
 
-  /* Create a white label, set its text and align it to the center */
-
   g_data.label = lv_label_create(lv_screen_active());
+  g_data.time_label = lv_label_create(lv_screen_active());
   lv_label_set_text(g_data.label, "");
   lv_obj_set_style_text_color(lv_screen_active(), lv_color_hex(0xffffff), LV_PART_MAIN);
   lv_obj_align(g_data.label, LV_ALIGN_CENTER, -20, 0);
-  // lv_unlock();
+  lv_obj_align(g_data.time_label, LV_ALIGN_CENTER, -20, -50);
 #endif
 
 #ifdef CONFIG_NIMBLE
@@ -521,10 +576,6 @@ int main(int argc, FAR char *argv[])
      */
     lv_timer_handler();
 #endif /* CONFIG_GRAPHICS_LVGL */
-
-#ifdef CONFIG_PM
-    ping_wdog();
-#endif /* CONFIG_PM */
   }
 
 #ifdef CONFIG_GRAPHICS_LVGL

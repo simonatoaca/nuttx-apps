@@ -132,19 +132,20 @@ static void home_display(void *ctx)
   struct data_s const *g_data_ptr = get_g_data();
 
 #ifdef CONFIG_GRAPHICS_LVGL
-  // lv_lock();
   lv_color_t current_color = lv_obj_get_style_bg_color(lv_screen_active(), LV_PART_MAIN);
   lv_color_t wanted_color = lv_color_hex(((struct home_data_s *)g_data_ptr->ctx->data)->bg_color);
 
   /* Execute only on update */
   lv_label_set_text_fmt(g_data_ptr->label, "Home: %d", ((struct home_data_s *)g_data_ptr->ctx->data)->btn_value);
+  lv_label_set_text_fmt(g_data_ptr->time_label, "%02d/%02d/%04d\n%02d:%02d:%02d",
+                        g_data_ptr->time.day, g_data_ptr->time.month, g_data_ptr->time.year,
+                        g_data_ptr->time.hours, g_data_ptr->time.minutes, g_data_ptr->time.seconds);
 
   if (wanted_color.red != current_color.red ||
       wanted_color.green != current_color.green ||
       wanted_color.blue != current_color.blue) {
     lv_obj_set_style_bg_color(lv_screen_active(), wanted_color, LV_PART_MAIN);
   }
-  // lv_unlock();
 #else
   UNUSED(g_data_ptr);
 #endif

@@ -23,6 +23,7 @@ int home(int argc, char *argv[]);
 int notif(int argc, char *argv[]);
 int haptic(int argc, char *argv[]);
 int button_handler(int argc, char *argv[]);
+int timer_handler(int argc, char *argv[]);
 int nimble(int argc, char *argv[]);
 
 #endif

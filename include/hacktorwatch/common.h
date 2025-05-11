@@ -34,6 +34,7 @@ enum task_ctx_magic_num {
 
 #define NOTIF_NORMAL (0)
 #define NOTIF_ALERT  (1)
+#define NOTIF_TIME   (2)
 
 struct task_s {
   char *name;
@@ -51,6 +52,7 @@ struct data_s {
 #ifdef CONFIG_GRAPHICS_LVGL
   lv_obj_t *screen;
   lv_obj_t *label;
+  lv_obj_t *time_label;
 #endif
   sem_t tasks_register;    /* Wait for all tasks to register */
   sem_t ctx_update;        /* this signals a ctx update */
@@ -58,12 +60,23 @@ struct data_s {
   mqd_t haptic_mq;         /* used to trigger vibration */
   mqd_t notif_mq;          /* used to push notifications */
 
+  struct {
+    uint16_t year;
+    uint8_t month;
+    uint8_t day;
+    uint8_t hours;
+    uint8_t minutes;
+    uint8_t seconds;
+  } time;
+
   struct ctx_node_s ctx_stack; /* push ctx so one can rewind to the previous */
   const struct ctx_s *ctx;     /* ctx is modified locally */
   struct task_s tasks[NUM_TASKS];
 };
 
 struct data_s const *get_g_data(void);
+void set_g_data_time(void *time_data);
+void add_g_data_time(uint64_t time_elapsed_seconds);
 void set_ctx(const struct ctx_s *ctx);
 void rewind_ctx(void);
 void signal_ctx_update(void);
@@ -78,6 +91,7 @@ void relax_once(int domain, int state);
 void stay_once(int domain, int state);
 
 #ifdef CONFIG_PM
+int ping_wdog(void);
 /**
  * Create a wrapper function that calls stay_once(domain, state).
  * This helps with waking up from an Idle state.
@@ -86,7 +100,7 @@ void stay_once(int domain, int state);
  * When CONFIG_PM is not used, this does nothing.
  */
 #define WAKEUP_SOURCE(ret_type, func, domain, state) \
-    static ret_type wakeup_##func(const void *ctx) { stay_once(domain, state); return func(ctx); }
+    static ret_type wakeup_##func(const void *ctx) { stay_once(domain, state); ping_wdog(); return func(ctx); }
 
 #define WAKEUP_WRAP(func) \
     wakeup_##func

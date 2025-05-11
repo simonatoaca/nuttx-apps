@@ -96,6 +96,7 @@ WAKEUP_SOURCE(int, receive_notif, PM_IDLE_DOMAIN, PM_NORMAL);
 
 static int parse_normal(char *notif, int len);
 static int parse_als(char *notif, int len);
+static int parse_curr_time(char *notif, int len);
 
 /****************************************************************************
 * Private Data
@@ -123,16 +124,17 @@ RTC_BSS_ATTR static struct notif_data_s notif_data;
 
 static const struct ctx_s notif_ctx = {
   .btn_action[BUTTON_UNUSED] = notif_btn_unused,
-  .btn_action[BUTTON_OK] = WAKEUP_WRAP(notif_btn_ok),
-  .btn_action[BUTTON_UP] = WAKEUP_WRAP(notif_btn_up),
-  .btn_action[BUTTON_DOWN] = WAKEUP_WRAP(notif_btn_down),
-  .display = notif_display,
-  .data = (void *)&notif_data,
+  .btn_action[BUTTON_OK]     = WAKEUP_WRAP(notif_btn_ok),
+  .btn_action[BUTTON_UP]     = WAKEUP_WRAP(notif_btn_up),
+  .btn_action[BUTTON_DOWN]   = WAKEUP_WRAP(notif_btn_down),
+  .display                   = notif_display,
+  .data                      = (void *)&notif_data,
 };
 
 static const parse_fn parsers[] = {
   [NOTIF_NORMAL] = parse_normal,
-  [NOTIF_ALERT]  = parse_als
+  [NOTIF_ALERT]  = parse_als,
+  [NOTIF_TIME]   = parse_curr_time,
 };
 
 /****************************************************************************
@@ -205,6 +207,31 @@ static int parse_als(char *notif, int len)
   return type;
 }
 
+static int parse_curr_time(char *notif, int len)
+{
+  struct curr_time_t {
+    struct {
+        uint16_t year;
+        uint8_t month;
+        uint8_t day;
+        uint8_t hours;
+        uint8_t minutes;
+        uint8_t seconds;
+    } __attribute__((packed)) tstmp;
+
+    uint8_t day_of_week;
+    uint8_t fractions256;
+    uint8_t adjust_reason;
+  } __attribute__ ((packed));
+
+  struct curr_time_t *curr_time = (struct curr_time_t *)notif;
+
+  set_g_data_time(curr_time);
+
+  /* Return negative int so the notification is silent */
+  return -1;
+}
+
 static int receive_notif(const void *ctx)
 {
   mqd_t *mq = (mqd_t *)ctx;
@@ -231,11 +258,11 @@ static void notif_display(void *ctx)
   struct data_s const *g_data_ptr = get_g_data();
 
 #ifdef CONFIG_GRAPHICS_LVGL
-  // lv_lock();
   lv_color_t current_color = lv_obj_get_style_bg_color(lv_screen_active(), LV_PART_MAIN);
   lv_color_t wanted_color = lv_color_hex(((struct notif_data_s *)g_data_ptr->ctx->data)->bg_color);
 
   /* Execute only on update */
+  lv_label_set_text(g_data_ptr->time_label, "");
   lv_label_set_text_fmt(g_data_ptr->label, "%s\n", ((struct notif_data_s *)g_data_ptr->ctx->data)->notification);
 
   if (wanted_color.red != current_color.red ||
@@ -243,7 +270,6 @@ static void notif_display(void *ctx)
       wanted_color.blue != current_color.blue) {
     lv_obj_set_style_bg_color(lv_screen_active(), wanted_color, LV_PART_MAIN);
   }
-  // lv_unlock();
 #else
   UNUSED(g_data_ptr);
 #endif

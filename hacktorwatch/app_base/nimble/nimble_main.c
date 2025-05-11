@@ -115,15 +115,26 @@ ble_on_read(uint16_t conn_handle,
                 struct ble_gatt_attr *attr,
                 void *arg)
 {
-    printf( "Read complete; status=%d conn_handle=%d", error->status,
-                conn_handle);
-    if (error->status == 0) {
-        printf( " attr_handle=%d value=", attr->handle);
-        print_mbuf(attr->om);
-    }
-    printf( "\n");
+  printf( "Read complete; status=%d conn_handle=%d", error->status,
+              conn_handle);
+  if (error->status == 0) {
+      printf( " attr_handle=%d value=", attr->handle);
+      print_mbuf(attr->om);
+  }
+  printf( "\n");
 
-    return 0;
+  return 0;
+}
+
+static int
+ble_on_read_time(uint16_t conn_handle,
+                const struct ble_gatt_error *error,
+                struct ble_gatt_attr *attr,
+                void *arg)
+{
+  mq_send(notif_mq, attr->om->om_data, attr->om->om_len, NOTIF_TIME);
+
+  return 0;
 }
 
 /**
@@ -156,7 +167,7 @@ ble_on_subscribe(uint16_t conn_handle,
  * this function immediately terminates the connection.
  */
 static void
-ble_read(const struct peer *peer)
+ble_read_ans(const struct peer *peer)
 {
   const struct peer_chr *chr;
   // const struct peer_dsc *dsc;
@@ -188,7 +199,7 @@ err_rd:
 }
 
 static void
-ble_subscribe(const struct peer *peer)
+ble_subscribe_ans(const struct peer *peer)
 {
     const struct peer_chr *chr;
     const struct peer_dsc *dsc;
@@ -224,7 +235,73 @@ err_sub:
     ble_gap_terminate(peer->conn_handle, BLE_ERR_REM_USER_CONN_TERM);
 }
 
- 
+static void
+ble_subscribe_curr_time(const struct peer *peer)
+{
+    const struct peer_chr *chr;
+    const struct peer_dsc *dsc;
+    uint8_t value[2];
+    int rc;
+
+    /* Subscribe to notifications for the Current Time characteristic.
+     * A central enables notifications by writing two bytes (1, 0) to the
+     * characteristic's client-characteristic-configuration-descriptor (CCCD).
+     */
+    dsc = peer_dsc_find_uuid(peer,
+                             BLE_UUID16_DECLARE(BLECENT_SVC_CURRENT_TIME),
+                             BLE_UUID16_DECLARE(BLECENT_CHR_CURRENT_TIME),
+                             BLE_UUID16_DECLARE(BLE_GATT_DSC_CLT_CFG_UUID16));
+    if (dsc == NULL) {
+        printf( "Error: Peer lacks a CCCD for the Current Time "
+                           "characteristic\n");
+        goto err_sub;
+    }
+
+    value[0] = 1;
+    value[1] = 0;
+    rc = ble_gattc_write_flat(peer->conn_handle, dsc->dsc.handle,
+                              value, sizeof value, ble_on_subscribe, NULL);
+    if (rc != 0) {
+        printf( "Error: Failed to subscribe to characteristic; "
+                           "rc=%d\n", rc);
+        goto err_sub;
+    }
+
+err_sub:
+    /* Terminate the connection. */
+    ble_gap_terminate(peer->conn_handle, BLE_ERR_REM_USER_CONN_TERM);
+}
+
+static void
+ble_read_curr_time(const struct peer *peer)
+{
+  const struct peer_chr *chr;
+  int rc;
+
+  /* Read the current time characteristic. */
+  chr = peer_chr_find_uuid(peer,
+                          BLE_UUID16_DECLARE(BLECENT_SVC_CURRENT_TIME),
+                          BLE_UUID16_DECLARE(BLECENT_CHR_CURRENT_TIME));
+  if (chr == NULL) {
+      printf( "Error: Peer doesn't support the Current Time characteristic\n");
+      goto err_rd;
+  }
+
+  rc = ble_gattc_read(peer->conn_handle, chr->chr.val_handle,
+                      ble_on_read_time, NULL);
+  if (rc != 0) {
+      printf( "Error: Failed to read characteristic; rc=%d\n",
+                  rc);
+      goto err_rd;
+  }
+
+  return;
+
+err_rd:
+  /* Terminate the connection. */
+  ble_gap_terminate(peer->conn_handle, BLE_ERR_REM_USER_CONN_TERM);
+}
+
 /**
  * Called when service discovery of the specified peer has completed.
  */
@@ -246,9 +323,10 @@ ble_on_disc_complete(const struct peer *peer, int status, void *arg)
   printf( "Service discovery complete; status=%d "
                   "conn_handle=%d\n", status, peer->conn_handle);
 
-  /* Read Alert Service */
-  ble_read(peer);
-  // ble_subscribe(peer);
+  /* Read Services */
+  ble_read_ans(peer);
+  ble_read_curr_time(peer);
+  // ble_subscribe_curr_time(peer);
 }
 
 /**
@@ -328,7 +406,7 @@ ble_gap_event(struct ble_gap_event *event, void *arg)
             printf( "Failed to discover services; rc=%d\n", rc);
             return 0;
         }
-        
+
         sprintf(msg, "connected\nstatus 0x%02x", rc);
         mq_send(notif_mq, msg, MAX_NOTIFICATION_LEN, NOTIF_NORMAL);
       } else {
@@ -340,7 +418,7 @@ ble_gap_event(struct ble_gap_event *event, void *arg)
       }
 
       return 0;
-  
+
   case BLE_GAP_EVENT_PAIRING_COMPLETE:
       if (event->pairing_complete.status == 0) {
         mq_send(notif_mq, "pair complete", MAX_NOTIFICATION_LEN, NOTIF_NORMAL);
@@ -507,13 +585,13 @@ ble_advertise(void)
       return;
   }
 }
- 
+
 static void
 ble_on_reset(int reason)
 {
      printf( "Resetting state; reason=%d\n", reason);
 }
- 
+
 static void
 ble_on_sync(void)
 {
@@ -526,11 +604,11 @@ ble_on_sync(void)
   /* Begin advertising. */
   ble_advertise();
 }
- 
+
  /****************************************************************************
   * Name: ble_hci_sock_task
   ****************************************************************************/
- 
+
 static FAR void *ble_hci_sock_task(FAR void *param)
 {
   set_cpu_affinity(1);
@@ -541,7 +619,7 @@ static FAR void *ble_hci_sock_task(FAR void *param)
 /****************************************************************************
  * Name: ble_host_task
  ****************************************************************************/
- 
+
 static FAR void *ble_host_task(FAR void *param)
 {
   ble_hs_cfg.reset_cb = ble_on_reset;
@@ -597,7 +675,7 @@ static int ble_create_task(struct ble_npl_task *t, const char *name, ble_npl_tas
 
   return err;
 }
- 
+
 /****************************************************************************
  * Public Functions
  ****************************************************************************/
@@ -605,7 +683,7 @@ static int ble_create_task(struct ble_npl_task *t, const char *name, ble_npl_tas
 /****************************************************************************
  * Name: nimble_main
  ****************************************************************************/
- 
+
 int nimble(int argc, FAR char *argv[])
 {
   struct ble_npl_task s_task_host;
@@ -668,4 +746,3 @@ int nimble(int argc, FAR char *argv[])
 
   return 0;
 }
- 
