@@ -61,10 +61,7 @@ struct notif_data_s {
   uint8_t magic;
   uint32_t bg_color;
   uint32_t text_color;
-  char *notification;
-
-  /* Used just so that this memory is reserved */
-  char padding[NOTIF_MAX_BUF_LEN];
+  char notification[NOTIF_MAX_BUF_LEN];
 };
 
 struct notif_ops_s {
@@ -262,7 +259,7 @@ static void init_local_ctx(void)
   notif_data.magic = NOTIF_MAGIC_NUM;
   notif_data.bg_color = 0x0;
   notif_data.text_color = 0xff;
-  notif_data.notification = "None";
+  sprintf(notif_data.notification, "None");
 }
 
 /****************************************************************************
