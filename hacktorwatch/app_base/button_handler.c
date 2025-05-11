@@ -1,5 +1,5 @@
 /****************************************************************************
- * apps/hacktorwatch/app_base.c
+ * apps/hacktorwatch/app_base/button_handler.c
  *
  * SPDX-License-Identifier: Apache-2.0
  *
