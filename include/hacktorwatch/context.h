@@ -21,6 +21,7 @@ struct ctx_s {
 int menu(int argc, char *argv[]);
 int home(int argc, char *argv[]);
 int notif(int argc, char *argv[]);
+int app_timer(int argc, char *argv[]);
 int haptic(int argc, char *argv[]);
 int button_handler(int argc, char *argv[]);
 int timer_handler(int argc, char *argv[]);

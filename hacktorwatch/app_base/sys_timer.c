@@ -1,5 +1,5 @@
 /****************************************************************************
- * apps/hacktorwatch/app_base/timer.c
+ * apps/hacktorwatch/app_base/sys_timer.c
  *
  * SPDX-License-Identifier: Apache-2.0
  *

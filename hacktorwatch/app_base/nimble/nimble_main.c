@@ -170,7 +170,6 @@ static void
 ble_read_ans(const struct peer *peer)
 {
   const struct peer_chr *chr;
-  // const struct peer_dsc *dsc;
   int rc;
 
   /* Read the supported-new-alert-category characteristic. */
@@ -195,7 +194,7 @@ ble_read_ans(const struct peer *peer)
 
 err_rd:
   /* Terminate the connection. */
-  ble_gap_terminate(peer->conn_handle, BLE_ERR_REM_USER_CONN_TERM);
+  // ble_gap_terminate(peer->conn_handle, BLE_ERR_REM_USER_CONN_TERM);
 }
 
 static void
@@ -232,7 +231,7 @@ ble_subscribe_ans(const struct peer *peer)
 
 err_sub:
     /* Terminate the connection. */
-    ble_gap_terminate(peer->conn_handle, BLE_ERR_REM_USER_CONN_TERM);
+    // ble_gap_terminate(peer->conn_handle, BLE_ERR_REM_USER_CONN_TERM);
 }
 
 static void
@@ -324,8 +323,11 @@ ble_on_disc_complete(const struct peer *peer, int status, void *arg)
                   "conn_handle=%d\n", status, peer->conn_handle);
 
   /* Read Services */
-  ble_read_ans(peer);
+
+  // TODO: don t disconnect if these fail
+  // ble_read_ans(peer);
   ble_read_curr_time(peer);
+
   // ble_subscribe_curr_time(peer);
 }
 

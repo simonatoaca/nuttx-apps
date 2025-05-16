@@ -129,14 +129,15 @@ static void menu_btn_ok(const void *ctx)
 static void menu_display(void *ctx)
 {
   struct data_s const *g_data_ptr = get_g_data();
+  struct menu_data_s const *data = (struct menu_data_s *)g_data_ptr->ctx->data;
+
 #ifdef CONFIG_GRAPHICS_LVGL
   lv_color_t current_color = lv_obj_get_style_bg_color(lv_screen_active(), LV_PART_MAIN);
-  lv_color_t wanted_color = lv_color_hex(((struct menu_data_s *)g_data_ptr->ctx->data)->bg_color);
+  lv_color_t wanted_color = lv_color_hex(data->bg_color);
 
   /* Execute only on update */
   lv_label_set_text(g_data_ptr->time_label, "");
-  lv_label_set_text_fmt(g_data_ptr->label, "Menu: %d",
-                        ((struct menu_data_s *)g_data_ptr->ctx->data)->btn_value);
+  lv_label_set_text_fmt(g_data_ptr->label, "Menu: %d", data->btn_value);
 
   if (wanted_color.red != current_color.red ||
       wanted_color.green != current_color.green ||

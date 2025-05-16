@@ -143,6 +143,7 @@ static int init(void)
   register_task("home_task", home, HOME_ID);
   register_task("menu_task", menu, MENU_ID);
   register_task("notif_task", notif, NOTIF_ID);
+  register_task("app_timer_task", app_timer, TIMER_ID);
 
   for (int i = 0; i < NUM_TASKS; i++) {
     ret = task_create(g_data.tasks[i].name, 120, 4096,

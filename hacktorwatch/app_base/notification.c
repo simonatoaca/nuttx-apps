@@ -68,7 +68,16 @@ struct notif_ops_s {
   CODE int (*receive)(const void *ctx);
 };
 
+enum timer_op_codes {
+  TIMER_OP_START = 251,
+  TIMER_SET = TIMER_OP_START,
+  TIMER_START,
+  TIMER_STOP,
+  TIMER_OP_END
+};
+
 typedef int (*parse_fn)(char *notif, int len);
+typedef int (*timer_op)(uint8_t *data, int len);
 
 /****************************************************************************
 * Private Function Prototypes
@@ -84,19 +93,24 @@ static void notif_display(void *ctx);
     it is compatible with WAKEUP_SOURCE() */
 static int receive_notif(const void *ctx);
 
+/* Parser functions */
+
+static int parse_normal(char *notif, int len);
+static int parse_als(char *notif, int len);
+static int parse_curr_time(char *notif, int len);
+
+/* Timer ops */
+
+static int timer_set(uint8_t *data, int len);
+static int timer_start(uint8_t *data, int len);
+static int timer_stop(uint8_t *data, int len);
+
 /* Declare wakeup sources */
 
 WAKEUP_SOURCE(void, notif_btn_ok, PM_IDLE_DOMAIN, PM_NORMAL);
 WAKEUP_SOURCE(void, notif_btn_up, PM_IDLE_DOMAIN, PM_NORMAL);
 WAKEUP_SOURCE(void, notif_btn_down, PM_IDLE_DOMAIN, PM_NORMAL);
 WAKEUP_SOURCE(int, receive_notif, PM_IDLE_DOMAIN, PM_NORMAL);
-
-
-/* Parser functions */
-
-static int parse_normal(char *notif, int len);
-static int parse_als(char *notif, int len);
-static int parse_curr_time(char *notif, int len);
 
 /****************************************************************************
 * Private Data
@@ -137,6 +151,12 @@ static const parse_fn parsers[] = {
   [NOTIF_TIME]   = parse_curr_time,
 };
 
+static const timer_op timer_ops[] = {
+  [TIMER_SET]   = timer_set,
+  [TIMER_START] = timer_start,
+  [TIMER_STOP]  = timer_stop,
+};
+
 /****************************************************************************
 * Private Functions
 ****************************************************************************/
@@ -166,7 +186,6 @@ static void notif_btn_ok(const void *ctx)
   rewind_ctx();
 }
 
-
 static int parse_normal(char *notif, int len)
 {
   sprintf(notif_data.notification, "%s", notif);
@@ -195,6 +214,21 @@ static int parse_als(char *notif, int len)
   if (type < (sizeof(alert_types) / sizeof(alert_types[0])))
     {
       ret += sprintf(notif_data.notification, "%s\n", alert_types[type]);
+    }
+  else
+    {
+      /**
+       *  Type is custom => indicates some other type of event
+       *  For the mobile-watch communication, the ALS is also used
+       *  to set/start/stop a timer.
+       */
+      if (TIMER_OP_START <= type && type < TIMER_OP_END)
+        {
+          timer_ops[type]((uint8_t *)message, len);
+        }
+
+      /* Return negative int so the notification is silent */
+      return -1;
     }
 
   if (new_alerts)
@@ -286,6 +320,40 @@ static void init_local_ctx(void)
   notif_data.bg_color = 0x0;
   notif_data.text_color = 0xff;
   sprintf(notif_data.notification, "None");
+}
+
+/**
+ *  Data expected to be received:
+ *
+ *  activity_nsec (1 byte)
+ *  activity_nmin (1 byte)
+ *  pause_nsec    (1 byte)
+ *  pause_nmin    (1 byte)
+ */
+static int timer_set(uint8_t *data, int len)
+{
+  struct data_s const *g_data_ptr = get_g_data();
+
+  set_activity_timer_duration(data[0], data[1]);
+  set_pause_timer_duration(data[2], data[3]);
+
+  set_ctx(g_data_ptr->tasks[TIMER_ID].ctx);
+
+  return OK;
+}
+
+static int timer_start(uint8_t *data, int len)
+{
+  start_timer();
+
+  return OK;
+}
+
+static int timer_stop(uint8_t *data, int len)
+{
+  stop_timer();
+
+  return OK;
 }
 
 /****************************************************************************

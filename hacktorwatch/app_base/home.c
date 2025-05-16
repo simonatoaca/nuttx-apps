@@ -130,14 +130,15 @@ static void home_btn_ok(const void *ctx)
 static void home_display(void *ctx)
 {
   struct data_s const *g_data_ptr = get_g_data();
+  struct home_data_s const *data = (struct home_data_s *)g_data_ptr->ctx->data;
   struct time_t const *time = g_data_ptr->time;
 
 #ifdef CONFIG_GRAPHICS_LVGL
   lv_color_t current_color = lv_obj_get_style_bg_color(lv_screen_active(), LV_PART_MAIN);
-  lv_color_t wanted_color = lv_color_hex(((struct home_data_s *)g_data_ptr->ctx->data)->bg_color);
+  lv_color_t wanted_color = lv_color_hex(data->bg_color);
 
   /* Execute only on update */
-  lv_label_set_text_fmt(g_data_ptr->label, "Home: %d", ((struct home_data_s *)g_data_ptr->ctx->data)->btn_value);
+  lv_label_set_text_fmt(g_data_ptr->label, "Home: %d", data->btn_value);
   lv_label_set_text_fmt(g_data_ptr->time_label, "%02d/%02d/%04d\n%02d:%02d:%02d",
                         time->day, time->month, time->year,
                         time->hours, time->minutes, time->seconds);

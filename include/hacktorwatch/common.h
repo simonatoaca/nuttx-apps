@@ -15,6 +15,7 @@ enum task_ctx_id {
   HOME_ID,
   MENU_ID,
   NOTIF_ID,
+  TIMER_ID,
   NUM_TASKS
 };
 
@@ -24,7 +25,8 @@ enum task_ctx_id {
 enum task_ctx_magic_num {
   HOME_MAGIC_NUM = 0x50,
   MENU_MAGIC_NUM,
-  NOTIF_MAGIC_NUM
+  NOTIF_MAGIC_NUM,
+  TIMER_MAGIC_NUM,
 };
 
 #define HAPTIC_MQ_NAME "haptic"
@@ -92,11 +94,21 @@ void register_task(char *name, main_t entry, uint8_t id);
 void set_task_ctx(const struct ctx_s *ctx, uint8_t id);
 void trigger_haptic(int8_t effect_id);
 int set_cpu_affinity(uint32_t core_id);
+
+/* PM - related */
+
 void stay(int domain, int state);
 void relax(int domain, int state);
 int get_staycount(int domain, int state);
 void relax_once(int domain, int state);
 void stay_once(int domain, int state);
+
+/* Timer app related */
+
+void start_timer(void);
+void stop_timer(void);
+void set_activity_timer_duration(uint64_t nsec, uint64_t nmin);
+void set_pause_timer_duration(uint64_t nsec, uint64_t nmin);
 
 #ifdef CONFIG_PM
 int ping_wdog(void);
