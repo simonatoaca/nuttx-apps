@@ -69,10 +69,11 @@ struct notif_ops_s {
 };
 
 enum timer_op_codes {
-  TIMER_OP_START = 251,
+  TIMER_OP_START = 10,
   TIMER_SET = TIMER_OP_START,
   TIMER_START,
   TIMER_STOP,
+  TIMER_RESET,
   TIMER_OP_END
 };
 
@@ -104,6 +105,7 @@ static int parse_curr_time(char *notif, int len);
 static int timer_set(uint8_t *data, int len);
 static int timer_start(uint8_t *data, int len);
 static int timer_stop(uint8_t *data, int len);
+static int timer_reset(uint8_t *data, int len);
 
 /* Declare wakeup sources */
 
@@ -155,6 +157,7 @@ static const timer_op timer_ops[] = {
   [TIMER_SET]   = timer_set,
   [TIMER_START] = timer_start,
   [TIMER_STOP]  = timer_stop,
+  [TIMER_RESET] = timer_reset,
 };
 
 /****************************************************************************
@@ -220,15 +223,19 @@ static int parse_als(char *notif, int len)
       /**
        *  Type is custom => indicates some other type of event
        *  For the mobile-watch communication, the ALS is also used
-       *  to set/start/stop a timer.
+       *  to set/start/stop/reset a timer.
        */
       if (TIMER_OP_START <= type && type < TIMER_OP_END)
         {
           timer_ops[type]((uint8_t *)message, len);
+          /* Return negative int so the notification is silent */
+          return -1;
         }
 
-      /* Return negative int so the notification is silent */
-      return -1;
+      /* For DEBUG, TODO: ERASE THIS */
+      ret += sprintf(notif_data.notification, "%s\n%d", "Unknown\nAlert Type", type);
+
+      return 1;
     }
 
   if (new_alerts)
@@ -325,17 +332,15 @@ static void init_local_ctx(void)
 /**
  *  Data expected to be received:
  *
- *  activity_nsec (1 byte)
  *  activity_nmin (1 byte)
- *  pause_nsec    (1 byte)
  *  pause_nmin    (1 byte)
  */
 static int timer_set(uint8_t *data, int len)
 {
   struct data_s const *g_data_ptr = get_g_data();
 
-  set_activity_timer_duration(data[0], data[1]);
-  set_pause_timer_duration(data[2], data[3]);
+  set_activity_timer_duration(0, data[0]);
+  set_pause_timer_duration(0, data[1]);
 
   set_ctx(g_data_ptr->tasks[TIMER_ID].ctx);
 
@@ -352,6 +357,13 @@ static int timer_start(uint8_t *data, int len)
 static int timer_stop(uint8_t *data, int len)
 {
   stop_timer();
+
+  return OK;
+}
+
+static int timer_reset(uint8_t *data, int len)
+{
+  reset_timer();
 
   return OK;
 }

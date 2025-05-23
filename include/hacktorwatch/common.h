@@ -107,6 +107,8 @@ void stay_once(int domain, int state);
 
 void start_timer(void);
 void stop_timer(void);
+void reset_timer(void);
+
 void set_activity_timer_duration(uint64_t nsec, uint64_t nmin);
 void set_pause_timer_duration(uint64_t nsec, uint64_t nmin);
 

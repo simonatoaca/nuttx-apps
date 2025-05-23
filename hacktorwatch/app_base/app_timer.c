@@ -99,7 +99,6 @@ static void timer_display(void *ctx);
 /* Helper functions */
 
 static void update_timer(void);
-static void reset_timer(void);
 
 /* Declare wakeup sources */
 
@@ -266,16 +265,6 @@ static void update_timer(void)
   timer_data.n_mode = curr_mode;
 }
 
-static void reset_timer(void)
-{
-  uint8_t curr_mode = timer_data.n_mode;
-
-  timer_data.state = TIMER_STOPPED;
-  timer_data.mode[curr_mode].elapsed_nsec = 0;
-  timer_data.mode[curr_mode].timestamp.min = timer_data.mode[curr_mode].nsec / 60;
-  timer_data.mode[curr_mode].timestamp.sec = timer_data.mode[curr_mode].nsec - (60 * timer_data.mode[curr_mode].timestamp.min);
-}
-
 /****************************************************************************
  * Public Functions
  ****************************************************************************/
@@ -288,6 +277,20 @@ void start_timer(void)
 void stop_timer(void)
 {
   timer_data.state = TIMER_STOPPED;
+}
+
+/**
+ *  Resets timer to focus, stopped state
+ */
+void reset_timer(void)
+{
+  timer_data.n_mode = TIMER_ACTIVITY;
+  uint8_t curr_mode = timer_data.n_mode;
+
+  timer_data.state = TIMER_STOPPED;
+  timer_data.mode[curr_mode].elapsed_nsec = 0;
+  timer_data.mode[curr_mode].timestamp.min = timer_data.mode[curr_mode].nsec / 60;
+  timer_data.mode[curr_mode].timestamp.sec = timer_data.mode[curr_mode].nsec - (60 * timer_data.mode[curr_mode].timestamp.min);
 }
 
 void set_activity_timer_duration(uint64_t nsec, uint64_t nmin)
