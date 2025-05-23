@@ -58,11 +58,6 @@
 #include "services/gap/ble_svc_gap.h"
 #include "services/gatt/ble_svc_gatt.h"
 #include "services/ans/ble_svc_ans.h"
-#include "services/ias/ble_svc_ias.h"
-#include "services/lls/ble_svc_lls.h"
-#include "services/tps/ble_svc_tps.h"
-#include "services/bas/ble_svc_bas.h"
-#include "services/dis/ble_svc_dis.h"
 
 /* BLE */
 #include "nimble/ble.h"
@@ -358,6 +353,55 @@ ble_print_conn_desc(struct ble_gap_conn_desc *desc)
               desc->sec_state.bonded);
 }
 
+int
+ble_sec_restart(uint16_t conn_handle,
+                uint8_t key_size,
+                uint8_t *ltk,
+                uint16_t ediv,
+                uint64_t rand_val,
+                int auth)
+{
+  struct ble_store_value_sec value_sec;
+  struct ble_store_key_sec key_sec;
+  struct ble_gap_conn_desc desc;
+  uint8_t conn_flags;
+  int rc;
+
+  if (ltk == NULL) {
+      /* The user is requesting a store lookup. */
+      rc = ble_gap_conn_find(conn_handle, &desc);
+      if (rc != 0) {
+          return rc;
+      }
+
+      memset(&key_sec, 0, sizeof key_sec);
+      key_sec.peer_addr = desc.peer_id_addr;
+
+      rc = ble_hs_atomic_conn_flags(conn_handle, &conn_flags);
+      if (rc != 0) {
+          return rc;
+      }
+      if (conn_flags & 0x01) {
+          rc = ble_store_read_peer_sec(&key_sec, &value_sec);
+      } else {
+          rc = ble_store_read_our_sec(&key_sec, &value_sec);
+      }
+      if (rc != 0) {
+          return rc;
+      }
+
+      ltk = value_sec.ltk;
+      key_size = value_sec.key_size;
+      ediv = value_sec.ediv;
+      rand_val = value_sec.rand_num;
+      auth = value_sec.authenticated;
+  }
+
+  rc = ble_gap_encryption_initiate(conn_handle, key_size, ltk,
+                                    ediv, rand_val, auth);
+  return rc;
+}
+
 /**
  * The nimble host executes this callback when a GAP event occurs.  The
  * application associates a GAP event callback with each connection that is
@@ -446,7 +490,7 @@ ble_gap_event(struct ble_gap_event *event, void *arg)
       /* Forget about peer. */
       peer_delete(event->disconnect.conn.conn_handle);
 
-      sprintf(msg, "disconnected\nreason %d", event->disconnect.reason);
+      sprintf(msg, "disconnected\nreason 0x%x", event->disconnect.reason);
       mq_send(notif_mq, msg, MAX_NOTIFICATION_LEN, NOTIF_NORMAL);
 
       /* Resume advertising. */
@@ -508,8 +552,6 @@ ble_gap_event(struct ble_gap_event *event, void *arg)
       return BLE_GAP_REPEAT_PAIRING_RETRY;
 
   default:
-      // sprintf(msg, "event 0x%02x", event->type);
-      // mq_send(notif_mq, msg, MAX_NOTIFICATION_LEN, 0);
       return 0;
   }
 }
@@ -569,6 +611,12 @@ ble_advertise(void)
   // };
   // fields.num_uuids16 = 1;
   // fields.uuids16_is_complete = 1;
+
+  // fields.uuids128 = (ble_uuid128_t[]){
+  //   BLE_UUID128_INIT(GATT_SVR_STEPS_UUID)
+  // };
+  // fields.num_uuids128 = 1;
+  // fields.uuids128_is_complete = 1;
 
   rc = ble_gap_adv_set_fields(&fields);
   if (rc != 0) {
@@ -636,7 +684,7 @@ static FAR void *ble_host_task(FAR void *param)
   ble_hs_cfg.sm_their_key_dist |= BLE_SM_PAIR_KEY_DIST_ENC | BLE_SM_PAIR_KEY_DIST_ID;
 
   ble_svc_gap_device_name_set(g_gap_name);
-  set_cpu_affinity(1);
+  // set_cpu_affinity(1);
   nimble_port_run();
   return NULL;
 }
@@ -716,12 +764,7 @@ int nimble(int argc, FAR char *argv[])
   ble_svc_gap_init();
   ble_svc_gatt_init();
   // ble_svc_ans_init(); // Alert Notification Service
-  // ble_svc_ias_init(); // Immediate Alert Service
-  // ble_svc_lls_init(); // Link Loss Service
-  // ble_svc_tps_init(); // TX Power Level Service
-  // ble_svc_bas_init(); // Battery Level Service
-  // ble_svc_dis_init(); // Device Information Service
-
+  ble_svc_steps_init();
 
   // ret = gatt_svr_init();
   ret = peer_init(1, 64, 64, 64);

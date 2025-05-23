@@ -106,6 +106,7 @@ static void menu_btn_up(const void *ctx)
   UNUSED(g_data_ptr);
 
   menu_data.btn_value++;
+  ble_svc_steps_cnt_set(menu_data.btn_value);
   signal_ctx_update();
 }
 
@@ -115,6 +116,7 @@ static void menu_btn_down(const void *ctx)
   UNUSED(g_data_ptr);
 
   menu_data.btn_value--;
+  ble_svc_steps_cnt_set(menu_data.btn_value);
   signal_ctx_update();
 }
 

@@ -45,6 +45,45 @@
 #define BLECENT_CHR_CURRENT_TIME            0x2A2B
 #define BLECENT_CHR_LOCAL_TIME              0x2A0F
 
+
+#define BLE_SVC_STEPS_UUID128   0,\
+0,\
+0,\
+0,\
+0,\
+0,\
+0,\
+0,\
+0,\
+0,\
+0,\
+0,\
+0,\
+0,\
+0,\
+0
+
+#define BLE_SVC_STEPS_CNT_CHR_UUID128  0,\
+0,\
+0,\
+0,\
+1,\
+0,\
+0,\
+0,\
+0,\
+0,\
+0,\
+0,\
+0,\
+0,\
+0,\
+0
+
+#define BLE_SVC_STEPS_CNT_NOTIFY_ENABLE 0 // 0 for now
+
+#define GATT_SVR_STEPS_UUID    BLE_SVC_STEPS_UUID128
+
 struct ble_hs_adv_fields;
 struct ble_gap_conn_desc;
 struct ble_hs_cfg;
@@ -112,6 +151,9 @@ int peer_init(int max_peers, int max_svcs, int max_chrs, int max_dscs);
 
 void gatt_svr_register_cb(struct ble_gatt_register_ctxt *ctxt, void *arg);
 int gatt_svr_init(void);
+
+void ble_svc_steps_init(void);
+int ble_svc_steps_cnt_set(uint16_t cnt);
 
 /* PHY support */
 #if MYNEWT_VAL(BLEPRPH_LE_PHY_SUPPORT)
