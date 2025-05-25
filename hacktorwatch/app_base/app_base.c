@@ -317,8 +317,8 @@ void add_g_data_time(uint64_t time_elapsed_seconds)
 
   time->seconds %= 60;
   time->minutes %= 60;
-  time->hours   %= 60;
-  time->day     %= 24;
+  time->hours   %= 24;
+  time->day     %= 31;
 
   /* Update timestamp for Deep Sleep */
   nxclock_gettime(0, &time->tp);
