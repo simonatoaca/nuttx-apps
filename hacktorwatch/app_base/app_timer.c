@@ -263,6 +263,8 @@ static void update_timer(void)
   timer_data.mode[curr_mode].timestamp.sec = remaining_nsec;
   timer_data.mode[curr_mode].timestamp.min = remaining_nmin;
   timer_data.n_mode = curr_mode;
+
+  ping_wdog();
 }
 
 /****************************************************************************
