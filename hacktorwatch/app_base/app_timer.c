@@ -170,7 +170,7 @@ static void timer_display(void *ctx)
   lv_label_set_text_fmt(g_data_ptr->label, "%02d:%02d", data->mode[data->n_mode].timestamp.min,
                                                         data->mode[data->n_mode].timestamp.sec);
   if (data->n_mode == TIMER_ACTIVITY)
-    lv_label_set_text_fmt(g_data_ptr->time_label, "Activity\n");
+    lv_label_set_text_fmt(g_data_ptr->time_label, "Focus\n");
   else
     lv_label_set_text_fmt(g_data_ptr->time_label, "Pause\n");
 
