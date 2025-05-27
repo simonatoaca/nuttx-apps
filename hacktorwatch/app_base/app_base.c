@@ -563,6 +563,10 @@ int main(int argc, FAR char *argv[])
   start_wdog();
 #endif /* CONFIG_PM */
 
+  /* Used so awakening from Deep Sleep does not turn on the screen */
+
+  wait_ctx_update();
+
   while (1) {
     wait_ctx_update();
 
