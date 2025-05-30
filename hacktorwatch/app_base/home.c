@@ -165,6 +165,10 @@ static void init_local_ctx(void)
   home_data.btn_value = 0;
 }
 
+/****************************************************************************
+ * Public Functions
+ ****************************************************************************/
+
 int home(int argc, char *argv[])
 {
   /* Important for init */

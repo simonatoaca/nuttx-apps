@@ -95,6 +95,7 @@ void *get_ctx_data(struct data_s *data);
 static struct data_s g_data = {0};
 
 RTC_BSS_ATTR static struct time_t rtc_saved_time_data;
+RTC_BSS_ATTR static int16_t rtc_saved_steps;
 
 #ifdef CONFIG_PM
 static struct wdog_data_s g_wdog = {
@@ -119,6 +120,7 @@ static int init(void)
   nxclock_gettime(0, &tp);
   g_data.time = &rtc_saved_time_data;
   add_g_data_time(tp.tv_sec - g_data.time->tp.tv_sec);
+  g_data.steps = &rtc_saved_steps;
 
   sem_init(&g_data.ctx_update, 1, 0);
   sem_init(&g_data.ctx_mutex, 1, 1);
@@ -239,9 +241,9 @@ static int start_wdog(void)
  * Public Functions
  ****************************************************************************/
 
-#ifdef CONFIG_PM
 int ping_wdog(void)
 {
+#ifdef CONFIG_PM
   int ret;
   struct watchdog_status_s status;
 
@@ -252,9 +254,10 @@ int ping_wdog(void)
   }
 
   return ioctl(g_wdog.fd, WDIOC_KEEPALIVE, 0);
-}
+#else
+  return OK;
 #endif /* CONFIG_PM */
-
+}
 int set_cpu_affinity(uint32_t core_id)
 {
   int ret;
@@ -284,6 +287,11 @@ void *get_ctx_data(struct data_s *data)
 struct data_s const *get_g_data(void)
 {
   return &g_data;
+}
+
+void set_step_count(int16_t steps)
+{
+  *g_data.steps = steps;
 }
 
 /**
@@ -538,6 +546,16 @@ int main(int argc, FAR char *argv[])
   if (ret < 0) {
     int errcode = errno;
     printf("main: ERROR: Failed to start timer_task: %d\n",
+    errcode);
+    return EXIT_FAILURE;
+  }
+
+  /* Create a separate task for handling accel */
+  ret = task_create("step_task", 100, 8192, step_counter,
+      NULL);
+  if (ret < 0) {
+    int errcode = errno;
+    printf("main: ERROR: Failed to start step_counter: %d\n",
     errcode);
     return EXIT_FAILURE;
   }

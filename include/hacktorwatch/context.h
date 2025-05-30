@@ -26,5 +26,6 @@ int haptic(int argc, char *argv[]);
 int button_handler(int argc, char *argv[]);
 int timer_handler(int argc, char *argv[]);
 int nimble(int argc, char *argv[]);
+int step_counter(int argc, char *argv[]);
 
 #endif

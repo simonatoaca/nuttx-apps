@@ -106,7 +106,6 @@ static void menu_btn_up(const void *ctx)
   UNUSED(g_data_ptr);
 
   menu_data.btn_value++;
-  ble_svc_steps_cnt_set(menu_data.btn_value);
   signal_ctx_update();
 }
 
@@ -116,7 +115,6 @@ static void menu_btn_down(const void *ctx)
   UNUSED(g_data_ptr);
 
   menu_data.btn_value--;
-  ble_svc_steps_cnt_set(menu_data.btn_value);
   signal_ctx_update();
 }
 
@@ -139,7 +137,7 @@ static void menu_display(void *ctx)
 
   /* Execute only on update */
   lv_label_set_text(g_data_ptr->time_label, "");
-  lv_label_set_text_fmt(g_data_ptr->label, "Menu: %d", data->btn_value);
+  lv_label_set_text_fmt(g_data_ptr->label, "Menu\nSteps\n%d", *g_data_ptr->steps);
 
   if (wanted_color.red != current_color.red ||
       wanted_color.green != current_color.green ||
@@ -162,6 +160,10 @@ static void init_local_ctx(void)
   menu_data.bg_color = ~0x003a57;
   menu_data.btn_value = 0;
 }
+
+/****************************************************************************
+ * Public Functions
+ ****************************************************************************/
 
 int menu(int argc, char *argv[])
 {

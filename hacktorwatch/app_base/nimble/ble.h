@@ -153,7 +153,7 @@ void gatt_svr_register_cb(struct ble_gatt_register_ctxt *ctxt, void *arg);
 int gatt_svr_init(void);
 
 void ble_svc_steps_init(void);
-int ble_svc_steps_cnt_set(uint16_t cnt);
+// int ble_svc_steps_cnt_set(uint16_t cnt);
 
 /* PHY support */
 #if MYNEWT_VAL(BLEPRPH_LE_PHY_SUPPORT)

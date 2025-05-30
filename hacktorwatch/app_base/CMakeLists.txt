@@ -44,10 +44,11 @@ if(CONFIG_HACKTORWATCH_APP_BASE)
     ${CMAKE_CURRENT_LIST_DIR}/nimble/ble_peer.c
     ${CMAKE_CURRENT_LIST_DIR}/nimble/gatt_svr.c
     ${CMAKE_CURRENT_LIST_DIR}/nimble/ble_steps_svc.c
+    ${CMAKE_CURRENT_LIST_DIR}/C-Step-Counter/*.c
     INCLUDE_DIRECTORIES
     $<GENEX_EVAL:$<TARGET_PROPERTY:nimble,INCLUDE_DIRECTORIES>>
     DEPENDS
-    )
+  )
   
 endif()
 

@@ -27,6 +27,7 @@ enum task_ctx_magic_num {
   MENU_MAGIC_NUM,
   NOTIF_MAGIC_NUM,
   TIMER_MAGIC_NUM,
+  STEPS_MAGIC_NUM,
 };
 
 #define HAPTIC_MQ_NAME "haptic"
@@ -78,6 +79,7 @@ struct data_s {
 
   /* This points to data in RTC memory */
   struct time_t *time;
+  int16_t *steps;
 
   struct ctx_node_s ctx_stack; /* push ctx so one can rewind to the previous */
   const struct ctx_s *ctx;     /* ctx is modified locally */
@@ -112,8 +114,12 @@ void reset_timer(void);
 void set_activity_timer_duration(uint64_t nsec, uint64_t nmin);
 void set_pause_timer_duration(uint64_t nsec, uint64_t nmin);
 
-#ifdef CONFIG_PM
+int ble_svc_steps_cnt_set(uint16_t cnt);
+void set_step_count(int16_t steps);
+
 int ping_wdog(void);
+
+#ifdef CONFIG_PM
 /**
  * Create a wrapper function that calls stay_once(domain, state).
  * This helps with waking up from an Idle state.
