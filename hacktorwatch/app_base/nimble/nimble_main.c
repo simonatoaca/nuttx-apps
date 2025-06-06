@@ -321,7 +321,7 @@ ble_on_disc_complete(const struct peer *peer, int status, void *arg)
 
   // TODO: don t disconnect if these fail
   // ble_read_ans(peer);
-  ble_read_curr_time(peer);
+  // ble_read_curr_time(peer);
 
   // ble_subscribe_curr_time(peer);
 }
