@@ -262,8 +262,8 @@ ble_subscribe_curr_time(const struct peer *peer)
     }
 
 err_sub:
-    /* Terminate the connection. */
-    ble_gap_terminate(peer->conn_handle, BLE_ERR_REM_USER_CONN_TERM);
+    // /* Terminate the connection. */
+    // ble_gap_terminate(peer->conn_handle, BLE_ERR_REM_USER_CONN_TERM);
 }
 
 static void
@@ -292,8 +292,8 @@ ble_read_curr_time(const struct peer *peer)
   return;
 
 err_rd:
-  /* Terminate the connection. */
-  ble_gap_terminate(peer->conn_handle, BLE_ERR_REM_USER_CONN_TERM);
+//   /* Terminate the connection. */
+//   ble_gap_terminate(peer->conn_handle, BLE_ERR_REM_USER_CONN_TERM);
 }
 
 /**
@@ -606,11 +606,11 @@ ble_advertise(void)
   fields.name_len = strlen(name);
   fields.name_is_complete = 1;
 
-  // fields.uuids16 = (ble_uuid16_t[]){
-  //     BLE_UUID16_INIT(GATT_SVR_SVC_ALERT_UUID)
-  // };
-  // fields.num_uuids16 = 1;
-  // fields.uuids16_is_complete = 1;
+  fields.uuids16 = (ble_uuid16_t[]){
+      BLE_UUID16_INIT(GATT_SVR_SVC_ALERT_UUID)
+  };
+  fields.num_uuids16 = 1;
+  fields.uuids16_is_complete = 1;
 
   // fields.uuids128 = (ble_uuid128_t[]){
   //   BLE_UUID128_INIT(GATT_SVR_STEPS_UUID)
@@ -763,7 +763,7 @@ int nimble(int argc, FAR char *argv[])
 
   ble_svc_gap_init();
   ble_svc_gatt_init();
-  // ble_svc_ans_init(); // Alert Notification Service
+  ble_svc_ans_init(); // Alert Notification Service
   ble_svc_steps_init();
 
   // ret = gatt_svr_init();
