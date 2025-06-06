@@ -75,11 +75,10 @@ enum alert_op_codes {
   TIMER_STOP,
   TIMER_RESET,
   TIMER_OP_END,
-  STEP_DATA_START,
+  STEP_DATA_START = 251,
   STEP_DATA_RECV = STEP_DATA_START,
   STEP_DATA_END
 };
-// 251 
 
 typedef int (*parse_fn)(char *notif, int len);
 typedef int (*alert_op)(uint8_t *data, int len);
