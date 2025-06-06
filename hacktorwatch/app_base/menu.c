@@ -137,7 +137,10 @@ static void menu_display(void *ctx)
 
   /* Execute only on update */
   lv_label_set_text(g_data_ptr->time_label, "");
-  lv_label_set_text_fmt(g_data_ptr->label, "Menu\nSteps\n%d", *g_data_ptr->steps);
+  lv_label_set_text_fmt(g_data_ptr->label, "Age: %d\nHeigth: %d cm\nWeight %d kg\nSteps: %d",
+                      g_data_ptr->health_data->age, g_data_ptr->health_data->height,
+                      g_data_ptr->health_data->weight,
+                      g_data_ptr->health_data->steps);
 
   if (wanted_color.red != current_color.red ||
       wanted_color.green != current_color.green ||

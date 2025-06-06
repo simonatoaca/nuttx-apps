@@ -94,8 +94,9 @@ void *get_ctx_data(struct data_s *data);
 
 static struct data_s g_data = {0};
 
+RTC_BSS_ATTR uint8_t magic_number;
 RTC_BSS_ATTR static struct time_t rtc_saved_time_data;
-RTC_BSS_ATTR static int16_t rtc_saved_steps;
+RTC_BSS_ATTR static struct health_data_t rtc_saved_health_data;
 
 #ifdef CONFIG_PM
 static struct wdog_data_s g_wdog = {
@@ -117,10 +118,18 @@ static int init(void)
   int ret = 0;
   struct timespec tp;
 
-  nxclock_gettime(0, &tp);
   g_data.time = &rtc_saved_time_data;
+  g_data.health_data = &rtc_saved_health_data;
+
+  if (magic_number != APP_BASE_NUM)
+    {
+      magic_number = APP_BASE_NUM;
+      memset(&rtc_saved_health_data, 0, sizeof(struct health_data_t));
+      memset(&rtc_saved_time_data, 0, sizeof(struct time_t));
+    }
+
+  nxclock_gettime(0, &tp);
   add_g_data_time(tp.tv_sec - g_data.time->tp.tv_sec);
-  g_data.steps = &rtc_saved_steps;
 
   sem_init(&g_data.ctx_update, 1, 0);
   sem_init(&g_data.ctx_mutex, 1, 1);
@@ -291,7 +300,15 @@ struct data_s const *get_g_data(void)
 
 void set_step_count(int16_t steps)
 {
-  *g_data.steps = steps;
+  g_data.health_data->steps = steps;
+}
+
+void set_health_data(int16_t steps, uint8_t age, uint8_t height, uint8_t weight)
+{
+  g_data.health_data->steps = steps;
+  g_data.health_data->age = age;
+  g_data.health_data->height = height;
+  g_data.health_data->weight = weight;
 }
 
 /**

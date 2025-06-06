@@ -68,17 +68,21 @@ struct notif_ops_s {
   CODE int (*receive)(const void *ctx);
 };
 
-enum timer_op_codes {
+enum alert_op_codes {
   TIMER_OP_START = 10,
   TIMER_SET = TIMER_OP_START,
   TIMER_START,
   TIMER_STOP,
   TIMER_RESET,
-  TIMER_OP_END
+  TIMER_OP_END,
+  STEP_DATA_START,
+  STEP_DATA_RECV = STEP_DATA_START,
+  STEP_DATA_END
 };
+// 251 
 
 typedef int (*parse_fn)(char *notif, int len);
-typedef int (*timer_op)(uint8_t *data, int len);
+typedef int (*alert_op)(uint8_t *data, int len);
 
 /****************************************************************************
 * Private Function Prototypes
@@ -106,6 +110,8 @@ static int timer_set(uint8_t *data, int len);
 static int timer_start(uint8_t *data, int len);
 static int timer_stop(uint8_t *data, int len);
 static int timer_reset(uint8_t *data, int len);
+
+static int step_data_recv(uint8_t *data, int len);
 
 /* Declare wakeup sources */
 
@@ -153,11 +159,12 @@ static const parse_fn parsers[] = {
   [NOTIF_TIME]   = parse_curr_time,
 };
 
-static const timer_op timer_ops[] = {
+static const alert_op alert_ops[] = {
   [TIMER_SET]   = timer_set,
   [TIMER_START] = timer_start,
   [TIMER_STOP]  = timer_stop,
   [TIMER_RESET] = timer_reset,
+  [STEP_DATA_RECV] = step_data_recv,
 };
 
 /****************************************************************************
@@ -227,8 +234,14 @@ static int parse_als(char *notif, int len)
        */
       if (TIMER_OP_START <= type && type < TIMER_OP_END)
         {
-          timer_ops[type]((uint8_t *)message, len);
+          alert_ops[type]((uint8_t *)message, len);
           /* Return negative int so the notification is silent */
+          return -1;
+        }
+
+      if (STEP_DATA_START <= type && type < STEP_DATA_END)
+        {
+          alert_ops[type]((uint8_t *)message, len);
           return -1;
         }
 
@@ -364,6 +377,21 @@ static int timer_stop(uint8_t *data, int len)
 static int timer_reset(uint8_t *data, int len)
 {
   reset_timer();
+
+  return OK;
+}
+
+static int step_data_recv(uint8_t *data, int len)
+{
+  struct data_s const *g_data_ptr = get_g_data();
+
+  /**
+   * TODO Ana: Parsare date din @data, similar cu timer-ul,
+   * depinde cum te intelegi cu Miruna sa transmiteti datele.
+   * In g_data_ptr poti stoca varsta, intaltimea, greutatea, etc.
+   * Foloseste set_health_data(int16_t steps, uint8_t age, uint8_t height, uin8_t weight).
+   */
+  set_health_data(0, 0, 0, 0);
 
   return OK;
 }

@@ -28,6 +28,7 @@ enum task_ctx_magic_num {
   NOTIF_MAGIC_NUM,
   TIMER_MAGIC_NUM,
   STEPS_MAGIC_NUM,
+  APP_BASE_NUM,
 };
 
 #define HAPTIC_MQ_NAME "haptic"
@@ -65,6 +66,13 @@ struct time_t {
   struct timespec tp;
 };
 
+struct health_data_t {
+  int16_t steps;
+  uint8_t age;
+  uint8_t height;
+  uint8_t weight;
+};
+
 struct data_s {
 #ifdef CONFIG_GRAPHICS_LVGL
   lv_obj_t *screen;
@@ -79,7 +87,7 @@ struct data_s {
 
   /* This points to data in RTC memory */
   struct time_t *time;
-  int16_t *steps;
+  struct health_data_t *health_data;
 
   struct ctx_node_s ctx_stack; /* push ctx so one can rewind to the previous */
   const struct ctx_s *ctx;     /* ctx is modified locally */
@@ -116,6 +124,7 @@ void set_pause_timer_duration(uint64_t nsec, uint64_t nmin);
 
 int ble_svc_steps_cnt_set(uint16_t cnt);
 void set_step_count(int16_t steps);
+void set_health_data(int16_t steps, uint8_t age, uint8_t height, uint8_t weight);
 
 int ping_wdog(void);
 
