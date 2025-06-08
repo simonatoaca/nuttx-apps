@@ -382,8 +382,6 @@ static int timer_reset(uint8_t *data, int len)
 
 static int step_data_recv(uint8_t *data, int len)
 {
-  struct data_s const *g_data_ptr = get_g_data();
-
   /**
    * TODO Ana: Parsare date din @data, similar cu timer-ul,
    * depinde cum te intelegi cu Miruna sa transmiteti datele.
