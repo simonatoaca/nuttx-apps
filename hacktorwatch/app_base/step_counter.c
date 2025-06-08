@@ -68,7 +68,9 @@ int step_counter(int argc, FAR char *argv[])
   float time_scale = 39.0625 / 1000.0;
 
   init_local_data();
+#ifdef CONFIG_NIMBLE
   ble_svc_steps_cnt_set(steps_data.saved);
+#endif
   set_step_count(steps_data.saved);
 
   /* Initialize step counting algorithm */
@@ -105,7 +107,10 @@ int step_counter(int argc, FAR char *argv[])
     processSample(time_ms, data.accel.x, data.accel.y, data.accel.z);
 
     steps_data.saved = steps_data.init + getSteps();
+
+#ifdef CONFIG_NIMBLE
     ble_svc_steps_cnt_set(steps_data.saved);
+#endif
     set_step_count(steps_data.saved);
 
     // printf("Step count: %d\n", getSteps());

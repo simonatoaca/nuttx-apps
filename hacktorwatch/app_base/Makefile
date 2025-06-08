@@ -31,9 +31,17 @@ STEP_COUNTER_DIR = C-Step-Counter
 STEP_COUNTER_SRC = C-Step-Counter/src/
 STEP_COUNTER_URL = git@github.com:Ana-Mirza/C-Step-Counter.git
 
-MAINSRC = app_base.c button_handler.c home.c menu.c haptic.c notification.c sys_timer.c app_timer.c
-MAINSRC += nimble/ble_peer.c nimble/ble_print_utils.c nimble/gatt_svr.c nimble/ble_steps_svc.c nimble/nimble_main.c
+MAINSRC = app_base.c button_handler.c home.c menu.c notification.c sys_timer.c app_timer.c
 
+ifneq ($(CONFIG_FF_DRV2605L),)
+MAINSRC += haptic.c
+endif
+
+ifneq ($(CONFIG_NIMBLE),)
+MAINSRC += nimble/ble_peer.c nimble/ble_print_utils.c nimble/gatt_svr.c nimble/ble_steps_svc.c nimble/nimble_main.c
+endif
+
+ifneq ($(CONFIG_SENSORS_BMI085),)
 MAINSRC += $(STEP_COUNTER_SRC)/detectionStage.c
 MAINSRC += $(STEP_COUNTER_SRC)/filterStage.c
 MAINSRC += $(STEP_COUNTER_SRC)/motionDetectStage.c
@@ -46,14 +54,20 @@ MAINSRC += $(STEP_COUNTER_SRC)/StepCountingAlgo.c
 CFLAGS += ${INCDIR_PREFIX}"$(STEP_COUNTER_DIR)$(DELIM)include"
 
 MAINSRC += step_counter.c
+endif
 
-ifeq ($(wildcard $(STEP_COUNTER_DIR )/.git),)
+ifeq ($(wildcard $(STEP_COUNTER_DIR)/.git),)
 context::
 	git clone $(STEP_COUNTER_URL)
+endif
 
+ifneq ($(wildcard $(STEP_COUNTER_DIR)/.git),)
 distclean::
 	$(call DELDIR,$(STEP_COUNTER_DIR))
 endif
 
+ifneq ($(CONFIG_NIMBLE),)
 include $(APPDIR)/wireless/bluetooth/nimble/Makefile.nimble
+endif
+
 include $(APPDIR)/Application.mk

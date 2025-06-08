@@ -537,6 +537,8 @@ int main(int argc, FAR char *argv[])
     return 1;
   }
 #endif
+
+#ifdef CONFIG_FF_DRV2605L
   /* Create a separate task for handling haptic events */
   ret = task_create("haptic_task", 120, 4096, haptic, NULL);
 
@@ -546,6 +548,7 @@ int main(int argc, FAR char *argv[])
     errcode);
     return EXIT_FAILURE;
   }
+#endif
 
   /* Create a separate task for handling button events */
   ret = task_create("button_task", 100, 4096, button_handler,
@@ -568,6 +571,7 @@ int main(int argc, FAR char *argv[])
   }
 
   /* Create a separate task for handling accel */
+#ifdef CONFIG_SENSORS_BMI085
   ret = task_create("step_task", 100, 8192, step_counter,
       NULL);
   if (ret < 0) {
@@ -576,6 +580,7 @@ int main(int argc, FAR char *argv[])
     errcode);
     return EXIT_FAILURE;
   }
+#endif
 
 #ifdef CONFIG_GRAPHICS_LVGL
   g_data.screen = lv_obj_create(NULL);
